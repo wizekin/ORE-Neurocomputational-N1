@@ -106,3 +106,29 @@ A research-grade validation phase should compare responses to controlled grating
 ## License
 
 MIT. See LICENSE.
+
+
+## N2 biological visual processing (17 operations)
+
+The repository now includes an independent `ore_n2` package implementing the
+17-step N2 visual-organization pipeline. N2 consumes the preserved
+`normalized_energy` spatial maps from N1; it does not reconstruct maps from the
+flattened N1 feature vector and does not modify N1. See
+[`N2_ARCHITECTURE.md`](N2_ARCHITECTURE.md) for the ordered algorithm, equations,
+interfaces, and scientific limitations.
+
+Quick start:
+
+```python
+from ore_n1 import N1Processor
+from ore_n2 import N2Processor
+
+n1_result = N1Processor().process(grayscale_image)
+n2_result = N2Processor().process(n1_result)
+print(n2_result.structured_output)
+print(n2_result.diagnostics["valid"])
+```
+
+Install with `python -m pip install -e ".[dev]"` and run the complete suite
+with `python -m pytest`. N2 outputs remain visual-structural representations;
+grapheme identity and lexical semantics are deliberately outside this phase.
