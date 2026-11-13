@@ -153,9 +153,10 @@ def n2_12_position_scale_tolerance(multiscale: np.ndarray, cfg: N2Config) -> dic
     scaled=multiscale/t
     m=np.max(scaled,axis=0,keepdims=True)
     lse=(m+np.log(np.mean(np.exp(scaled-m),axis=0,keepdims=True)+cfg.epsilon))*t
-    pooled=np.max(lse,axis=0)
+    pooled=np.max(lse,axis=(0,1))
+    scale_evidence=np.max(multiscale,axis=(0,1))
     return {"invariant_maps":pooled.astype(np.float32),
-            "scale_evidence":np.max(multiscale,axis=0).astype(np.float32)}
+            "scale_evidence":scale_evidence.astype(np.float32)}
 
 def n2_13_ventral_population(multiscale: np.ndarray, junctions: dict, fragments: dict, cfg: N2Config) -> dict:
     """13. Assemble a shape/form-oriented ventral population without lexical labels."""
