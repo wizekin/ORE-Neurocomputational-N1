@@ -1,6 +1,6 @@
-# ORE Neurocomputational N1
+# ORE Neurocomputational — N1, N2, and N3
 
-A modular Python implementation of the 12-operation N1 early-visual-processing pipeline for the Orthographic Representation Engine (ORE). It exposes intermediate maps, configurable biological approximations, optional temporal state, and per-stage numerical diagnostics.
+A modular Python implementation of the ORE N1 early-visual-processing, N2 visual-organization, and N3 recurrent orthographic-prediction research pipelines. It exposes intermediate representations, configurable computational approximations, uncertainty, recurrent state, and per-stage diagnostics.
 
 > Scientific scope: this is a biologically motivated computational approximation. It is not a cellular simulation, a fitted model of a particular species, or evidence that ORE reproduces the complete human visual system. Default parameters are engineering starting points and require calibration against empirical data before physiological claims are made.
 
