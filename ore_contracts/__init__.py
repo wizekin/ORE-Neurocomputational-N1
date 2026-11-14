@@ -492,6 +492,7 @@ from .advanced import (
     PlasticityBackend, PositionCodeBundle, PositionCodeChannel, PredictiveBackend,
     PredictionState, RecurrentBackend, SequenceCandidate, SequenceDecoder,
     SequenceHypothesisSet, TraceEvent, VisualFeatureBundle, evaluate_experiment,
+    SeededReplicate, ExperimentExecutionReport, run_seeded_replicates,
 )
 from .adapters import (
     LegacyN1Adapter, LegacyN2Adapter, LegacyN3Adapter, LegacyN4Adapter,
@@ -504,7 +505,7 @@ from .integration import (
     CanonicalRunResult, FrozenFusionPolicy, FunctionalEngine,
     LegacyN9FunctionalBackend, PhaseInvocation,
 )
-from .simulation import RateBasedNeuralSimulator
+from .simulation import RateBasedB1PhaseBackend, RateBasedNeuralSimulator
 
 __all__ += [
     "AcceptanceStatus", "EvaluationReport", "ExperimentSpec", "FeatureTensor",
@@ -516,7 +517,8 @@ __all__ += [
     "FunctionalVisualBackend", "BiologicalVisualBackend", "OrthographicBackend",
     "RecurrentBackend", "PlasticityBackend", "PredictiveBackend", "SequenceDecoder",
     "BiologicalValidator", "VisualFeatureBundle", "MetricRecord",
-    "evaluate_experiment", "RateBasedNeuralSimulator",
+    "evaluate_experiment", "SeededReplicate", "ExperimentExecutionReport",
+    "run_seeded_replicates", "RateBasedNeuralSimulator", "RateBasedB1PhaseBackend",
     "LearningTransactionManager", "LearningTransactionOutcome", "model_fingerprint",
     "make_envelope", "BiologicalStateAdapter", "LegacyN1Adapter", "LegacyN2Adapter", "LegacyN3Adapter",
     "LegacyN4Adapter", "LegacyN5Adapter", "LegacyN6Adapter", "LegacyN9Adapter",
