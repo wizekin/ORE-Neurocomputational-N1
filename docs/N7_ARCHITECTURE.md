@@ -96,25 +96,25 @@ Each operation is executed and receives one trace record. The operation trace is
 54. Compute variational free energy including prior divergence.
 
 ### G. Belief revision (55–63)
-55. Score joint hypotheses using prior and prediction energy.
-56. Apply iterative exponentiated-gradient belief updates.
-57. Reconcile direct posterior and iterative posterior estimates.
-58. Update separate style-factor beliefs.
-59. Measure convergence and preserve ambiguity when margins are small.
-60. Create a contextual memory trace without mutating caller memory.
-61. Compute decayed recent-context activation.
-62. Score associations against stored context values.
-63. Rank contextual associations deterministically.
+55. Score joint intent/domain hypotheses from their contextual prior and prediction energy.
+56. Evaluate the current variational free-energy objective.
+57. Compute the categorical belief gradient at the current belief state.
+58. Apply exponentiated-gradient updates with backtracking until free energy does not increase.
+59. Update independent response-style factor beliefs from their priors and optional style cues.
+60. Reconcile direct likelihood-based and iterative variational posterior estimates.
+61. Measure belief convergence, accepted step sizes and final free energy.
+62. Measure posterior ambiguity and preserve multiple hypotheses when the top margin is small.
+63. Validate posterior finiteness and normalization.
 
 ### H. Contextual memory and output (64–72)
-64. Keep visual, orthographic, N6 contextual and N7 contextual beliefs separate.
-65. Construct a ranked intent/domain hypothesis report.
-66. Compute final confidence and posterior uncertainty.
-67. Validate diagnostics and probability state.
-68. Validate and label the N7 result schema.
-69. Verify that original N6 evidence remains represented in output.
-70. Verify ranked-hypothesis cardinality and ordering.
-71. Verify operation trace cardinality and ordering.
+64. Create a contextual memory trace without mutating caller-owned memory.
+65. Compute decayed recent-context activation.
+66. Score contextual associations against the stored context values.
+67. Rank contextual associations deterministically.
+68. Keep visual, orthographic, N6 contextual and N7 contextual beliefs separate.
+69. Construct a ranked intent/domain hypothesis report.
+70. Compute final confidence and posterior uncertainty.
+71. Validate diagnostics, result schema, evidence preservation, ranked ordering and trace cardinality.
 72. Return the structured N7 result.
 
 ## Mathematical approximation
@@ -147,7 +147,7 @@ E(h)=\frac12\sum_j\Pi_j\epsilon_j^2
 F(q)=\sum_hq(h)E(h)+\beta\,KL(q\|p)
 ]
 
-An exponentiated-gradient approximation updates categorical beliefs:
+An exponentiated-gradient approximation updates categorical beliefs; backtracking halves the step size until the objective is non-increasing:
 
 [
 q_{t+1}=softmax\left(\log q_t-\eta\nabla_qF\right)
