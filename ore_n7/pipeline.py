@@ -412,7 +412,7 @@ class N7Processor:
             "operation_trace_complete": len(trace)==72,
             "ambiguous": ambiguous, "confidence": confidence,
             "posterior_entropy": uncertainty, "predictive_variance": predictive_variance,
-            "free_energy": free_energy, "convergence_iterations": len(convergence),
+            "free_energy": final_free_energy, "convergence_iterations": len(convergence),
             "all_probabilities_finite": bool(np.isfinite(revised).all()),
             "scientific_acceptance": "PENDING_INDEPENDENT_EMPIRICAL_VALIDATION",
         }
