@@ -13,12 +13,12 @@ from ore_contracts import (
     EvidenceKind, ExperimentSpec, FeatureTensor, FrozenFusionPolicy,
     GraphemeEvidence, LearningRequest, LearningTransactionManager,
     LegacyN1Adapter, LegacyN3Adapter, LegacyN4Adapter, LegacyN5Adapter,
-    LegacyN6Adapter, MetricRecord, NeuralInputEvent, NeuralSimulationConfig,
-    OperationMode, OrthographicMemorySnapshot, PositionCodeBundle,
+    LegacyN6Adapter, LegacyN9Adapter, MetricRecord, NeuralInputEvent, NeuralSimulationConfig,
+    OperationMode, OrthographicMemorySnapshot, PositionCodeBundle, RateBasedB1PhaseBackend,
     PositionCodeChannel, RateBasedNeuralSimulator, ReadingDirection,
     RunContext, ScriptProfile, SequenceCandidate, SequenceHypothesisSet,
     TraceEvent, VisualFeatureBundle, evaluate_experiment, make_envelope,
-    sha256_json,
+    sha256_json, run_seeded_replicates,
 )
 
 HASH = "a" * 64
@@ -361,3 +361,60 @@ def test_biological_state_adapter_keeps_voltage_and_rate_units_separate():
     assert by_name["membrane_potential"].units == "mV"
     assert by_name["firing_rate"].units == "Hz"
     assert by_name["membrane_potential"].representation_kind != by_name["firing_rate"].representation_kind
+
+
+def test_fixed_seed_experiment_runner_records_each_replicate():
+    spec = ExperimentSpec(
+        "replicate-exp", "hypothesis", "task", {}, (), (), (),
+        "2026-11-14T00:00:00Z", ("train",), ("validation",), ("test",),
+        (3, 7, 11), ("accuracy",), (), {}, "analysis-v1", "TASK",
+    )
+    report = run_seeded_replicates(spec, lambda current, seed: {"accuracy": seed / 20.0})
+    assert report.successful_seeds == (3, 7, 11)
+    assert report.failed_seeds == ()
+    assert report.replicates[1].metrics["accuracy"] == pytest.approx(0.35)
+
+
+def test_fixed_seed_experiment_runner_records_failures_without_fake_metrics():
+    spec = ExperimentSpec(
+        "replicate-fail", "hypothesis", "task", {}, (), (), (),
+        "2026-11-14T00:00:00Z", ("train",), ("validation",), ("test",),
+        (1, 2), ("accuracy",), (), {}, "analysis-v1", "TASK",
+    )
+    report = run_seeded_replicates(
+        spec, lambda _spec, seed: (_ for _ in ()).throw(RuntimeError("failed")) if seed == 2 else {"accuracy": 0.9}
+    )
+    assert report.replicates[0].status == "COMPLETED"
+    assert report.replicates[1].status == "FAILED"
+    assert report.replicates[1].metrics == {}
+
+
+def test_legacy_n9_adapter_keeps_patch_level_candidates_and_legacy_provenance():
+    result = SimpleNamespace(
+        sequence_id="legacy-seq",
+        decision={"status": "CANDIDATE", "confidence": 0.93},
+        class_names=("a", "b"),
+        visual_probabilities=np.array([[0.9, 0.1], [0.2, 0.8]], dtype=np.float32),
+        posterior_beliefs=np.array([[0.95, 0.05], [0.1, 0.9]], dtype=np.float32),
+    )
+    adapted = LegacyN9Adapter.to_recognition_result(result, envelope("IF-13"))
+    assert adapted.status == "RESOLVED"
+    assert adapted.hypotheses.candidates[0].graphemes == ("a", "b")
+    assert "canonical B-N9" in adapted.limitations[0]
+
+
+def test_rate_based_backend_runs_canonical_b_n1_via_controller():
+    config = NeuralSimulationConfig((("v1", 1),), np.zeros((1, 1)), dt_ms=1.0, membrane_tau_ms=10.0)
+    registry = CanonicalBackendRegistry()
+    registry.register_biological("B-N1", RateBasedB1PhaseBackend(config))
+    payload = {
+        "simulation_steps": 2,
+        "neural_inputs": [NeuralInputEvent(0, 5.0, 1.5)],
+    }
+    result = CanonicalOREController(registry).run(
+        make_context(OperationMode.BIOLOGICAL), payload
+    )
+    state = result.biological_outputs["B-N1"]
+    assert state.step_index == 2
+    assert state.simulation_time_ms == 2.0
+    assert result.channel_status["B-N1"] == "EXECUTED"
