@@ -264,33 +264,60 @@ class LegacyN6Adapter:
             raise ValueError("N6 decoded probabilities and class names are incompatible")
         if top_k < 1:
             raise ValueError("top_k must be positive")
-        decoded = tuple(getattr(result, "decoded_graphemes", ()))
-        if len(decoded) != matrix.shape[0]:
-            raise ValueError("N6 decoded grapheme count must match posterior rows")
         if not np.isfinite(matrix).all() or np.any(matrix < 0):
             raise ValueError("N6 decoded probabilities are invalid")
         row_sums = matrix.sum(axis=1, keepdims=True)
         if np.any(row_sums <= 0):
             raise ValueError("N6 decoded probability rows must have positive mass")
         matrix = matrix / row_sums
-        rows = np.max(matrix, axis=1)
-        confidence = float(np.mean(rows))
-        path = tuple(f"position:{i}" for i in range(matrix.shape[0]))
-        candidate = SequenceCandidate(
-            graphemes=decoded, segmentation_path=path,
-            component_scores={"S_ortho": confidence},
-            score_definitions={"S_ortho": "mean maximum N6 decoded posterior; not calibrated"},
-            confidence=confidence,
-            decision="CANDIDATE",
-            unknown_positions=tuple(i for i, label in enumerate(decoded) if label == "<UNK>"),
-        )
+        mean_confidence = float(np.mean(np.max(matrix, axis=1)))
+
+        alternatives = list(getattr(result, "segmentation_alternatives", []) or [])
+        candidates: list[SequenceCandidate] = []
+        for rank, alternative in enumerate(alternatives[:top_k], start=1):
+            token_records = list(alternative.get("tokens", ()))
+            graphemes: list[str] = []
+            path: list[str] = []
+            for token_index, token in enumerate(token_records):
+                token_graphemes = tuple(str(value) for value in token.get("graphemes", ()))
+                graphemes.extend(token_graphemes)
+                path.extend([f"token:{token_index}"] * len(token_graphemes))
+            if not graphemes:
+                continue
+            probability = float(alternative.get("probability", 0.0))
+            probability = float(np.clip(probability, 0.0, 1.0))
+            candidates.append(SequenceCandidate(
+                graphemes=tuple(graphemes), segmentation_path=tuple(path),
+                component_scores={"S_ortho": probability},
+                score_definitions={"S_ortho": "N6 segmentation alternative probability; not calibrated"},
+                confidence=probability,
+                decision="CANDIDATE",
+                unknown_positions=tuple(i for i, label in enumerate(graphemes) if label == "<UNK>"),
+            ))
+
+        decoded = tuple(getattr(result, "decoded_graphemes", ()))
+        if not candidates and decoded and len(decoded) == matrix.shape[0]:
+            candidates.append(SequenceCandidate(
+                graphemes=decoded,
+                segmentation_path=tuple(f"position:{i}" for i in range(len(decoded))),
+                component_scores={"S_ortho": mean_confidence},
+                score_definitions={"S_ortho": "mean maximum N6 decoded posterior; not calibrated"},
+                confidence=mean_confidence,
+                decision="CANDIDATE",
+                unknown_positions=tuple(i for i, label in enumerate(decoded) if label == "<UNK>"),
+            ))
         diagnostics = dict(getattr(result, "diagnostics", {}) or {})
-        abstained = bool(diagnostics.get("abstained", False) or diagnostics.get("decision") == "ABSTAIN")
+        abstained = bool(
+            diagnostics.get("abstained", False)
+            or diagnostics.get("decision") == "ABSTAIN"
+            or not candidates
+        )
         return SequenceHypothesisSet(
             envelope=envelope, sequence_id=str(result.sequence_id),
-            candidates=(candidate,), abstained=abstained,
+            candidates=tuple(candidates), abstained=abstained,
             out_of_distribution=bool(diagnostics.get("out_of_distribution", False)),
         )
+
 
 
 class LegacyN9Adapter:
