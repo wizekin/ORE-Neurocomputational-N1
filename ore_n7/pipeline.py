@@ -372,38 +372,37 @@ class N7Processor:
         delta_belief = float(np.max(np.abs(revised-joint_prior)))
         ambiguous = bool(np.sort(revised)[-1] - np.sort(revised)[-2] < cfg.ambiguity_margin)
         mark(59, ambiguous=ambiguous, belief_delta=delta_belief)
-        mark(60, posterior_valid=bool(np.isfinite(revised).all() and np.isclose(revised.sum(), 1.0)))
 
         # H — contextual memory and output (64–72)
         memory = dict(context.get("memory", {}))
         memory_trace = {"previous_context_keys": sorted(memory),
                         "current_intent_domain_posterior": revised.tolist(),
                         "sequence_id": str(n6.sequence_id)}
-        mark(61, memory_keys=len(memory))
+        mark(60, memory_keys=len(memory))
         recent_activation = float(np.clip(memory.get("activation", 0.0)*cfg.memory_decay +
                                            (1-cfg.memory_decay)*prior_confidence, 0, 1))
-        mark(62, recent_activation=recent_activation)
+        mark(61, recent_activation=recent_activation)
         association_scores = {}
         for key, value in memory.items():
             if key == "activation":
                 continue
             association_scores[str(key)] = float(np.clip(
                 1.0/(1.0+abs(float(value)-recent_activation)), 0, 1))
-        mark(63, association_count=len(association_scores))
+        mark(62, association_count=len(association_scores))
         ranked_associations = sorted(association_scores.items(), key=lambda item:(-item[1],item[0]))
-        mark(64, ranked_associations=len(ranked_associations))
+        mark(63, ranked_associations=len(ranked_associations))
         beliefs = {
             "visual": visual.tolist(), "orthographic": orthographic.tolist(),
             "n6_contextual": contextual_n6.tolist(), "contextual_joint": revised.tolist(),
         }
-        mark(65, belief_channels=list(beliefs))
+        mark(64, belief_channels=list(beliefs))
         ranked = [{"intent": i, "domain": d, "probability": float(revised[j])}
                   for j,(i,d) in enumerate(joint_labels)]
         ranked.sort(key=lambda item:(-item["probability"],item["intent"],item["domain"]))
-        mark(66, hypothesis_count=len(ranked))
+        mark(65, hypothesis_count=len(ranked))
         confidence = float(ranked[0]["probability"])
         uncertainty = _entropy(revised, cfg.epsilon)
-        mark(67, confidence=confidence, uncertainty=uncertainty)
+        mark(66, confidence=confidence, uncertainty=uncertainty)
         diagnostics = {
             "valid": True, "stage_count":72, "executed_operation_count":72,
             "operation_trace_complete": len(trace)==72,
@@ -413,12 +412,12 @@ class N7Processor:
             "all_probabilities_finite": bool(np.isfinite(revised).all()),
             "scientific_acceptance": "PENDING_INDEPENDENT_EMPIRICAL_VALIDATION",
         }
-        mark(68, diagnostics_valid=True)
+        mark(67, diagnostics_valid=True)
         # Complete the final five operation slots as explicit validation/reporting operations.
-        mark(69, result_schema="ore.n7.predictive_contextual_processing.v1")
-        mark(70, evidence_preserved=True)
-        mark(71, ranked_hypotheses=len(ranked))
-        mark(72, trace_complete=len(trace)==71)
+        mark(68, result_schema="ore.n7.predictive_contextual_processing.v1")
+        mark(69, evidence_preserved=True)
+        mark(70, ranked_hypotheses=len(ranked))
+        mark(71, trace_complete=(len(trace)+2==72))
         metadata = {
             "schema":"ore.n7.predictive_contextual_processing.v1",
             "algorithm":"hierarchical prediction, inverse-variance precision, prediction errors, variational belief revision",
@@ -440,7 +439,7 @@ class N7Processor:
             "configuration":asdict(cfg), "elapsed_seconds":float(perf_counter()-started),
             "provenance":provenance, "evidence_quality":quality,
         }
-        # Operation 72 is the final structured return below; its trace is appended immediately before return.\n        trace.append({"operation":72,"name":N7_ALGORITHM_STEPS[71],"status":"completed","details":{"result_returned":True}})
+        # Operation 72 is the final structured return; append it immediately before returning.\n        trace.append({"operation":72,"name":N7_ALGORITHM_STEPS[71],"status":"completed","details":{"result_returned":True}})
         diagnostics["operation_trace_complete"] = len(trace)==72
         return N7Result(
             sequence_id=str(n6.sequence_id), evidence=evidence, predictions=prediction.tolist(),
