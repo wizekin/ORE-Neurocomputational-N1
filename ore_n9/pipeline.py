@@ -1085,13 +1085,17 @@ class N9Processor:
         ))
         mark(101, posterior_confidence=posterior_confidence, calibrated_confidence=calibrated_confidence,
              candidate_margin=candidate_margin)
-        if not lexical_hypotheses or calibrated_confidence < cfg.confidence_threshold:
+        best_form = str(lexical_hypotheses[0].get("form", "")) if lexical_hypotheses else None
+        if (
+            not best_form
+            or lexical_abstain
+            or calibrated_confidence < cfg.confidence_threshold
+        ):
             decision_status = "ABSTAIN"
         elif candidate_margin < cfg.ambiguity_margin:
             decision_status = "AMBIGUOUS"
         else:
             decision_status = "CANDIDATE"
-        best_form = str(lexical_hypotheses[0].get("form", "")) if lexical_hypotheses else None
         decision = {
             "status": decision_status,
             "candidate": best_form if decision_status == "CANDIDATE" else None,
