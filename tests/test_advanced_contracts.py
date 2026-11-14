@@ -8,7 +8,7 @@ import numpy as np
 import pytest
 
 from ore_contracts import (
-    AcceptanceStatus, CanonicalBackendRegistry, CanonicalOREController,
+    AcceptanceStatus, BiologicalStateAdapter, CanonicalBackendRegistry, CanonicalOREController,
     ComputeBudget, ContractEnvelope, DatasetManifest, DatasetSample,
     EvidenceKind, ExperimentSpec, FeatureTensor, FrozenFusionPolicy,
     GraphemeEvidence, LearningRequest, LearningTransactionManager,
@@ -315,12 +315,7 @@ def test_p8_fusion_requires_fitted_and_frozen_policy_and_keeps_components():
     assert result.fused_output["component_outputs_preserved"] is True
     assert result.fused_output["policy_id"] == "combiner-v1"
     bad = CanonicalBackendRegistry()
-    bad.register_fusion_policy(FrozenFusionPolicy(
-        "bad", "manifest", HASH, lambda *args: {}, validation_fitted=False
-    ))
     with pytest.raises(ValueError, match="validation-fitted"):
-        bad.register_functional(FakeFunctional())
-        bad.register_biological("B-N1", FakeBiological())
         bad.register_fusion_policy(FrozenFusionPolicy(
             "bad", "manifest", HASH, lambda *args: {}, validation_fitted=False
         ))
@@ -356,3 +351,13 @@ def test_p8_validation_runs_only_the_offline_b_n8_backend():
     )
     assert result.channel_status["B-N8"] == "EXECUTED"
     assert "B-N1" not in result.channel_status
+
+
+def test_biological_state_adapter_keeps_voltage_and_rate_units_separate():
+    config = NeuralSimulationConfig((("v1", 1),), np.zeros((1, 1)))
+    state = RateBasedNeuralSimulator(config).initialize()
+    bundle = BiologicalStateAdapter.to_visual_feature_bundle(state, envelope("IF-05"))
+    by_name = {tensor.name: tensor for tensor in bundle.feature_tensors}
+    assert by_name["membrane_potential"].units == "mV"
+    assert by_name["firing_rate"].units == "Hz"
+    assert by_name["membrane_potential"].representation_kind != by_name["firing_rate"].representation_kind
