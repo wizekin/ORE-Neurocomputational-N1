@@ -747,5 +747,6 @@ __all__ = [
     "evaluate_experiment", "NeuralSimulator", "FunctionalVisualBackend",
     "BiologicalVisualBackend", "OrthographicBackend", "RecurrentBackend",
     "PlasticityBackend", "PredictiveBackend", "SequenceDecoder",
-    "BiologicalValidator",
+    "BiologicalValidator", "SeededReplicate", "ExperimentExecutionReport",
+    "run_seeded_replicates",
 ]
