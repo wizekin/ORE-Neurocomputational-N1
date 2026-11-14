@@ -164,3 +164,28 @@ def test_result_serializes_without_nan() -> None:
     result = N9Processor().process(simple_request())
     encoded = json.dumps(result.to_dict(), allow_nan=False)
     assert '"schema": "ore.n9.integrated_neurocomputational_ore.v1"' in encoded
+
+
+
+def test_authorized_learning_uses_a_detached_child_adapter() -> None:
+    class DummyN5:
+        def __init__(self):
+            self.proposals = 0
+
+        @property
+        def fingerprint(self):
+            return f"parent-v{self.proposals}"
+
+        def propose_update(self, payload):
+            self.proposals += 1
+            return {"child_model": {"version": 1}, "metadata": {"detached": True}}
+
+    parent = DummyN5()
+    request = simple_request()
+    request.learning_authorized = True
+    result = N9Processor(adapters=N9Adapters(n5=parent)).process(request)
+
+    assert parent.proposals == 0
+    assert result.learning["status"] == "child_proposed"
+    assert result.learning["child_model_created"] is True
+    assert result.learning["parent_model_mutated"] is False
