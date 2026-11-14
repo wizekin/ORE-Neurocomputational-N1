@@ -69,13 +69,40 @@ def bounded_oja_delta(
 def clip_prototype_drift(
     candidate: np.ndarray, parent: np.ndarray, maximum: float, epsilon: float
 ) -> np.ndarray:
+    """Clip angular prototype movement so its final chord drift stays bounded."""
     base = normalize_vector(parent, epsilon)
     proposed = normalize_vector(candidate, epsilon)
-    delta = proposed - base
-    norm = float(np.linalg.norm(delta))
-    if norm > maximum:
-        proposed = base + delta * (maximum / max(norm, epsilon))
-    return normalize_vector(proposed, epsilon)
+    maximum_chord = min(max(float(maximum), 0.0), 2.0)
+    cosine = float(np.clip(np.dot(base, proposed), -1.0, 1.0))
+    angle = float(np.arccos(cosine))
+    maximum_angle = 2.0 * float(np.arcsin(0.5 * maximum_chord))
+    if angle <= maximum_angle + 1e-12:
+        return proposed
+    if maximum_angle <= epsilon:
+        return base
+
+    sine = float(np.sin(angle))
+    if abs(sine) <= epsilon:
+        if base.size < 2:
+            return base
+        basis = np.zeros_like(base)
+        basis[int(np.argmin(np.abs(base)))] = 1.0
+        orthogonal = basis - float(np.dot(basis, base)) * base
+        orthogonal_norm = float(np.linalg.norm(orthogonal))
+        if orthogonal_norm <= epsilon:
+            return base
+        orthogonal = orthogonal / orthogonal_norm
+        clipped = (
+            np.cos(maximum_angle) * base
+            + np.sin(maximum_angle) * orthogonal
+        )
+    else:
+        fraction = maximum_angle / angle
+        clipped = (
+            np.sin((1.0 - fraction) * angle) * base
+            + np.sin(fraction * angle) * proposed
+        ) / sine
+    return normalize_vector(clipped, epsilon)
 
 
 def finite_state_arrays(model: Any) -> bool:

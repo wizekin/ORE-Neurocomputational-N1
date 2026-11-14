@@ -8,6 +8,7 @@ import pytest
 
 from ore_n3 import LabeledN2Patch, N3Config, N3Patch, N3Processor, N3Sequence
 from ore_n4 import N4Input, N4Processor
+from ore_n5.stages import clip_prototype_drift
 from ore_n5 import (
     N5_ALGORITHM_STEPS,
     N5Config,
@@ -201,3 +202,12 @@ def test_config_validation():
         N5Config(replay_capacity=1, replay_max_samples=2)
     with pytest.raises(ValueError):
         N5Config(max_prototype_drift=3.0)
+
+
+def test_parent_relative_prototype_drift_clipping_obeys_final_chord_bound():
+    parent = np.asarray([1.0, 0.0], dtype=np.float32)
+    candidate = np.asarray([0.6, 0.8], dtype=np.float32)
+    maximum = 0.35
+    clipped = clip_prototype_drift(candidate, parent, maximum, 1e-8)
+    assert np.isclose(np.linalg.norm(clipped), 1.0, atol=1e-6)
+    assert np.linalg.norm(clipped - parent) <= maximum + 1e-6
