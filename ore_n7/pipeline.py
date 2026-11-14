@@ -360,7 +360,6 @@ class N7Processor:
              ))
         revised = 0.5*posterior + 0.5*q
         revised /= revised.sum()
-        mark(60, posterior_revision=True)
         style_scores = np.asarray([style_prior[s] for s in styles])
         if "style_cues" in context:
             style_cues = context["style_cues"]
@@ -372,6 +371,8 @@ class N7Processor:
                 raise ValueError("style_cues eliminate all style probability mass")
             style_scores /= float(style_scores.sum())
         mark(59, style_posterior_count=len(style_scores))
+        mark(60, posterior_revision=True)
+        mark(61, convergence_iterations=len(convergence), final_free_energy=final_free_energy)
         delta_belief = float(np.max(np.abs(revised-joint_prior)))
         ambiguous = bool(np.sort(revised)[-1] - np.sort(revised)[-2] < cfg.ambiguity_margin)
         mark(62, ambiguous=ambiguous, belief_delta=delta_belief)\n        mark(63, posterior_valid=bool(np.isfinite(revised).all() and np.isclose(revised.sum(), 1.0)))
