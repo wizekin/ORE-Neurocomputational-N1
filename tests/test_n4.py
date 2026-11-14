@@ -1,15 +1,14 @@
 from __future__ import annotations
 
 import json
-from types import SimpleNamespace
-
 import numpy as np
 import pytest
 
 from ore_n4 import N4_ALGORITHM_STEPS, N4Config, N4Input, N4Processor
+from ore_n3.contracts import N3Result
 
 
-def make_n3_result() -> SimpleNamespace:
+def make_n3_result() -> N3Result:
     visual = np.asarray([
         [0.80, 0.15, 0.05],
         [0.42, 0.48, 0.10],
@@ -23,13 +22,15 @@ def make_n3_result() -> SimpleNamespace:
     posterior = 0.7 * visual + 0.3 * prior
     posterior /= posterior.sum(axis=1, keepdims=True)
     error = posterior * (np.log(posterior) - np.log(prior))
-    return SimpleNamespace(
+    return N3Result(
         sequence_id="test-sequence",
         class_names=("a", "b", "c"),
         visual_probabilities=visual,
+        initial_beliefs=visual.copy(),
         contextual_priors=prior,
         posterior_beliefs=posterior.astype(np.float32),
         classwise_prediction_error=error.astype(np.float32),
+        feature_residuals=np.zeros((3, 4), dtype=np.float32),
         candidates=[
             {"patch_id": "p1", "segmentation_confidence": 0.95, "attention": 0.1},
             {"patch_id": "p2", "segmentation_confidence": 0.55, "attention": 0.2},
