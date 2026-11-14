@@ -196,3 +196,38 @@ Run the full repository suite with:
     python -m pytest
 
 N4 is an algorithmic research approximation. Its attention and precision parameters are engineering hypotheses, not measured neural constants; software tests do not establish biological validity.
+
+## N5 experience-dependent plasticity (52 operations)
+
+The independent ore_n5 package adds a verified-learning phase after N4. It keeps fast and slow grapheme-prototype banks, decaying eligibility traces, replay examples, homeostatic class gains, verified exposure counters, and separate fast/slow transition memories. It consumes the same N2 feature descriptor space used by N3 and can optionally use N4 attention allocation, sensory precision and class-selective gates to modulate learning.
+
+N5 is deliberately separate from recognition. Learning requires both independently_verified=True and user_authorized=True; every example must include verifier, source-reference and timestamp provenance. The parent model is fingerprinted and never modified. Each learning call returns a separately versioned child model that can be exported to a new N3Processor.
+
+See [docs/N5_ARCHITECTURE.md](docs/N5_ARCHITECTURE.md) for the complete 52-operation algorithm, mathematical operations, interface contracts, safeguards, and limitations.
+
+Quick start:
+
+    from ore_n5 import N5Processor, N5Experience, N5LearningRequest
+
+    n5 = N5Processor()
+    parent = n5.initialize(fitted_n3_processor)
+    result = n5.learn(N5LearningRequest(
+        parent_model=parent,
+        experiences=verified_examples,
+        independently_verified=True,
+        user_authorized=True,
+        n4_result=optional_n4_result,
+    ))
+    updated_n3 = result.child_model.to_n3_processor()
+
+Run focused N5 tests with:
+
+    python -m pytest tests/test_n5.py -q
+
+Run all repository tests with:
+
+    python -m pip install -e ".[dev]"
+    python -m pytest
+
+N5 learning rules are computational approximations, not measured synaptic laws. Passing software tests does not establish biological validity, OCR accuracy, or writer/font generalization.
+
