@@ -311,7 +311,9 @@ class N7Processor:
                              cfg.belief_temperature, cfg.epsilon)
         mark(55, best_hypothesis=int(np.argmax(posterior)))
         mark(56, initial_free_energy=free_energy)
-        initial_gradient = energy + cfg.kl_weight * np.log(\n            np.maximum(joint_prior, cfg.epsilon) / np.maximum(joint_prior, cfg.epsilon)\n        )
+        initial_gradient = energy + cfg.kl_weight * np.log(
+            np.maximum(joint_prior, cfg.epsilon) / np.maximum(joint_prior, cfg.epsilon)
+        )
         mark(57, initial_gradient_norm=float(np.linalg.norm(initial_gradient)))
         q = joint_prior.copy()
         convergence = []
@@ -375,7 +377,8 @@ class N7Processor:
         mark(61, convergence_iterations=len(convergence), final_free_energy=final_free_energy)
         delta_belief = float(np.max(np.abs(revised-joint_prior)))
         ambiguous = bool(np.sort(revised)[-1] - np.sort(revised)[-2] < cfg.ambiguity_margin)
-        mark(62, ambiguous=ambiguous, belief_delta=delta_belief)\n        mark(63, posterior_valid=bool(np.isfinite(revised).all() and np.isclose(revised.sum(), 1.0)))
+        mark(62, ambiguous=ambiguous, belief_delta=delta_belief)
+        mark(63, posterior_valid=bool(np.isfinite(revised).all() and np.isclose(revised.sum(), 1.0)))
 
         # H — contextual memory and output (64–72)
         memory = dict(context.get("memory", {}))
@@ -442,7 +445,8 @@ class N7Processor:
             "configuration":asdict(cfg), "elapsed_seconds":float(perf_counter()-started),
             "provenance":provenance, "evidence_quality":quality,
         }
-        # Operation 72 is the final structured return; append it immediately before returning.\n        trace.append({"operation":72,"name":N7_ALGORITHM_STEPS[71],"status":"completed","details":{"result_returned":True}})
+        # Operation 72 is the final structured return; append it immediately before returning.
+        trace.append({"operation":72,"name":N7_ALGORITHM_STEPS[71],"status":"completed","details":{"result_returned":True}})
         diagnostics["operation_trace_complete"] = len(trace)==72
         return N7Result(
             sequence_id=str(n6.sequence_id), evidence=evidence, predictions=prediction.tolist(),
