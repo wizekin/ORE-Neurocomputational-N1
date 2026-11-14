@@ -1,4 +1,4 @@
-# ORE Neurocomputational — N1 through N6
+# ORE Neurocomputational — N1 through N7
 
 A modular Python research implementation of ORE's early visual processing (N1), visual organization (N2), recurrent orthographic prediction (N3), attention and precision gating (N4), verified experience-dependent plasticity (N5), and hierarchical orthographic sequence/lexical access (N6). Each phase is an additive package with explicit contracts, numerical operations, diagnostics, and tests.
 
@@ -23,7 +23,7 @@ python -m pytest
 | N3 | 29 | Recurrent grapheme hypotheses and orthographic prediction error |
 | N4 | 40 | Competitive attention and precision-gated inference |
 | N5 | 52 | Verified experience-dependent prototype plasticity and transition learning |
-| N6 | 60 | Bidirectional grapheme-sequence decoding, word-boundary estimation, and orthographic lexical access |
+| N6 | 60 | Bidirectional grapheme-sequence decoding, word-boundary estimation, and orthographic lexical access |\n| N7 | 72 | Predictive and contextual processing with hierarchical generative predictions, precision-weighted errors, and belief revision |
 
 The detailed phase documents are: N2_ARCHITECTURE.md, docs/N3_ARCHITECTURE.md, docs/N4_ARCHITECTURE.md, docs/N5_ARCHITECTURE.md, and docs/N6_ARCHITECTURE.md.
 
@@ -66,4 +66,4 @@ print(result.tokens)
 print(result.diagnostics["valid"])
 ~~~
 
-Run the focused N6 tests with python -m pytest tests/test_n6.py -q and the full suite with python -m pytest. See docs/N6_ARCHITECTURE.md for all 60 operations, equations, contracts, examples, limitations, and validation requirements.
+Run the focused N6 tests with python -m pytest tests/test_n6.py -q and the full suite with python -m pytest. See docs/N6_ARCHITECTURE.md for all 60 N6 operations and docs/N7_ARCHITECTURE.md for all 72 N7 operations, equations, contracts, limitations, and validation requirements.
