@@ -310,6 +310,9 @@ class N7Processor:
         posterior = _softmax(np.log(np.maximum(joint_prior, cfg.epsilon))-energy,
                              cfg.belief_temperature, cfg.epsilon)
         mark(55, best_hypothesis=int(np.argmax(posterior)))
+        mark(56, initial_free_energy=free_energy)
+        initial_gradient = energy + cfg.kl_weight * np.log(\n            np.maximum(joint_prior, cfg.epsilon) / np.maximum(joint_prior, cfg.epsilon)\n        )
+        mark(57, initial_gradient_norm=float(np.linalg.norm(initial_gradient)))
         q = joint_prior.copy()
         convergence = []
         def objective(candidate_q: np.ndarray) -> float:
@@ -350,14 +353,14 @@ class N7Processor:
             if delta <= cfg.convergence_tolerance or step_size < 1e-7:
                 break
         final_free_energy = objective(q)
-        mark(56, iterations=len(convergence), final_free_energy=final_free_energy,
+        mark(58, iterations=len(convergence), final_free_energy=final_free_energy,
              monotonic_updates=all(
                  convergence[i]["free_energy"] <= convergence[i-1]["free_energy"] + 1e-10
                  for i in range(1, len(convergence))
              ))
         revised = 0.5*posterior + 0.5*q
         revised /= revised.sum()
-        mark(57, posterior_revision=True)
+        mark(60, posterior_revision=True)
         style_scores = np.asarray([style_prior[s] for s in styles])
         if "style_cues" in context:
             style_cues = context["style_cues"]
@@ -368,41 +371,41 @@ class N7Processor:
             if float(style_scores.sum()) <= cfg.epsilon:
                 raise ValueError("style_cues eliminate all style probability mass")
             style_scores /= float(style_scores.sum())
-        mark(58, style_posterior_count=len(style_scores))
+        mark(59, style_posterior_count=len(style_scores))
         delta_belief = float(np.max(np.abs(revised-joint_prior)))
         ambiguous = bool(np.sort(revised)[-1] - np.sort(revised)[-2] < cfg.ambiguity_margin)
-        mark(59, ambiguous=ambiguous, belief_delta=delta_belief)
+        mark(62, ambiguous=ambiguous, belief_delta=delta_belief)\n        mark(63, posterior_valid=bool(np.isfinite(revised).all() and np.isclose(revised.sum(), 1.0)))
 
         # H — contextual memory and output (64–72)
         memory = dict(context.get("memory", {}))
         memory_trace = {"previous_context_keys": sorted(memory),
                         "current_intent_domain_posterior": revised.tolist(),
                         "sequence_id": str(n6.sequence_id)}
-        mark(60, memory_keys=len(memory))
+        mark(64, memory_keys=len(memory))
         recent_activation = float(np.clip(memory.get("activation", 0.0)*cfg.memory_decay +
                                            (1-cfg.memory_decay)*prior_confidence, 0, 1))
-        mark(61, recent_activation=recent_activation)
+        mark(65, recent_activation=recent_activation)
         association_scores = {}
         for key, value in memory.items():
             if key == "activation":
                 continue
             association_scores[str(key)] = float(np.clip(
                 1.0/(1.0+abs(float(value)-recent_activation)), 0, 1))
-        mark(62, association_count=len(association_scores))
+        mark(66, association_count=len(association_scores))
         ranked_associations = sorted(association_scores.items(), key=lambda item:(-item[1],item[0]))
-        mark(63, ranked_associations=len(ranked_associations))
+        mark(67, ranked_associations=len(ranked_associations))
         beliefs = {
             "visual": visual.tolist(), "orthographic": orthographic.tolist(),
             "n6_contextual": contextual_n6.tolist(), "contextual_joint": revised.tolist(),
         }
-        mark(64, belief_channels=list(beliefs))
+        mark(68, belief_channels=list(beliefs))
         ranked = [{"intent": i, "domain": d, "probability": float(revised[j])}
                   for j,(i,d) in enumerate(joint_labels)]
         ranked.sort(key=lambda item:(-item["probability"],item["intent"],item["domain"]))
-        mark(65, hypothesis_count=len(ranked))
+        mark(69, hypothesis_count=len(ranked))
         confidence = float(ranked[0]["probability"])
         uncertainty = _entropy(revised, cfg.epsilon)
-        mark(66, confidence=confidence, uncertainty=uncertainty)
+        mark(70, confidence=confidence, uncertainty=uncertainty)
         diagnostics = {
             "valid": True, "stage_count":72, "executed_operation_count":72,
             "operation_trace_complete": len(trace)==72,
@@ -412,12 +415,11 @@ class N7Processor:
             "all_probabilities_finite": bool(np.isfinite(revised).all()),
             "scientific_acceptance": "PENDING_INDEPENDENT_EMPIRICAL_VALIDATION",
         }
-        mark(67, diagnostics_valid=bool(np.isfinite(revised).all() and np.isclose(revised.sum(), 1.0)))
-        # Complete the final five operation slots as explicit validation/reporting operations.
-        mark(68, result_schema="ore.n7.predictive_contextual_processing.v1")
-        mark(69, evidence_preserved=True)
-        mark(70, ranked_hypotheses=len(ranked), ranked_order_valid=all(\n            ranked[i]["probability"] >= ranked[i+1]["probability"] for i in range(len(ranked)-1)\n        ))
-        mark(71, trace_complete=(len(trace)+2==72))
+        mark(71, diagnostics_valid=bool(np.isfinite(revised).all() and np.isclose(revised.sum(), 1.0)),
+             result_schema="ore.n7.predictive_contextual_processing.v1", evidence_preserved=True,
+             ranked_hypotheses=len(ranked), ranked_order_valid=all(
+                 ranked[i]["probability"] >= ranked[i+1]["probability"] for i in range(len(ranked)-1)
+             ), trace_complete=(len(trace)+2==72))
         metadata = {
             "schema":"ore.n7.predictive_contextual_processing.v1",
             "algorithm":"hierarchical prediction, inverse-variance precision, prediction errors, variational belief revision",
