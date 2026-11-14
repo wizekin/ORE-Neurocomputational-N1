@@ -118,9 +118,11 @@ class CanonicalOREController:
     def _learning_authorized(payload: Any) -> bool:
         if isinstance(payload, Mapping):
             request = payload.get("learning_request")
-            return bool(getattr(request, "explicitly_authorized", False))
+            return bool(payload.get("learning_authorized", False) or
+                        getattr(request, "explicitly_authorized", False))
         request = getattr(payload, "learning_request", None)
-        return bool(getattr(request, "explicitly_authorized", False))
+        return bool(getattr(payload, "learning_authorized", False) or
+                    getattr(request, "explicitly_authorized", False))
 
     def run(
         self,
