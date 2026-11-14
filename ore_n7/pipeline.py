@@ -147,6 +147,8 @@ class N7Processor:
         if not isinstance(request, N7Input):
             raise TypeError("N7Processor.process requires N7Input")
         n6 = request.n6_result
+        if n6 is None:
+            raise ValueError("N7 requires a completed N6Result")
         if getattr(n6, "metadata", {}).get("schema") not in (None, "ore.n6.hierarchical_orthographic_access.v1"):
             raise ValueError("unsupported N6 result schema")
         mark(1, request_type=type(request).__name__)
@@ -196,12 +198,14 @@ class N7Processor:
         discourse = dict(request.discourse_context or {})
         mark(16, discourse_fields=sorted(discourse))
         lexical = dict(request.lexical_context or {})
-        mark(17, lexical_fields=sorted(lexical))
+        syntax = dict(request.syntax_context or {})
+        semantic = dict(request.semantic_context or {})
+        mark(17, lexical_fields=sorted(lexical), syntax_fields=sorted(syntax), semantic_fields=sorted(semantic))
         context_vector = np.asarray([
             intent_prior[k] for k in intents
         ] + [domain_prior[k] for k in domains] + [
             float(evidence["boundary_mean"]), float(len(n6.tokens)),
-            float(len(n6.decoded_graphemes)), float(len(lexical)),
+            float(len(n6.decoded_graphemes)), float(len(lexical)+len(syntax)+len(semantic)),
             float(len(discourse)), float(len(task))
         ], dtype=np.float64)
         context_vector /= max(float(np.linalg.norm(context_vector)), cfg.epsilon)
@@ -326,8 +330,13 @@ class N7Processor:
         style_scores = np.asarray([style_prior[s] for s in styles])
         if "style_cues" in context:
             style_cues = context["style_cues"]
-            style_scores *= np.asarray([float(style_cues.get(s, 1.0)) for s in styles])
-            style_scores /= max(float(style_scores.sum()), cfg.epsilon)
+            style_multipliers = np.asarray([float(style_cues.get(s, 1.0)) for s in styles])
+            if not np.isfinite(style_multipliers).all() or np.any(style_multipliers < 0):
+                raise ValueError("style_cues must contain finite non-negative weights")
+            style_scores *= style_multipliers
+            if float(style_scores.sum()) <= cfg.epsilon:
+                raise ValueError("style_cues eliminate all style probability mass")
+            style_scores /= float(style_scores.sum())
         mark(58, style_posterior_count=len(style_scores))
         delta_belief = float(np.max(np.abs(revised-joint_prior)))
         ambiguous = bool(np.sort(revised)[-1] - np.sort(revised)[-2] < cfg.ambiguity_margin)
