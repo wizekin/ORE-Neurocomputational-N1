@@ -132,3 +132,37 @@ print(n2_result.diagnostics["valid"])
 Install with `python -m pip install -e ".[dev]"` and run the complete suite
 with `python -m pytest`. N2 outputs remain visual-structural representations;
 grapheme identity and lexical semantics are deliberately outside this phase.
+
+
+## N3 recurrent orthographic prediction and error (29 operations)
+
+The repository now includes an independent `ore_n3` package. It learns labelled
+N2 patch descriptors and smoothed grapheme unigram/bigram transitions, then
+combines visual candidate beliefs with left- and right-neighbor predictions
+using precision-weighted, damped inference. It preserves alternatives,
+classwise prediction-error terms, feature-space residuals, and convergence
+diagnostics. N3 expects one already-segmented N2 result per patch; it does not
+perform segmentation or semantic correction.
+
+See [docs/N3_ARCHITECTURE.md](docs/N3_ARCHITECTURE.md) for the exact 29
+operations, equations, contracts, API, and scientific limitations.
+
+Quick start:
+
+```python
+from ore_n3 import N3Config, LabeledN2Patch, N3Patch, N3Sequence, N3Processor
+
+n3 = N3Processor(N3Config()).fit(
+    labelled_reference_patches,
+    grapheme_sequences=[("a", "b", "a"), ("b", "a", "b")],
+)
+result = n3.process(N3Sequence("sample", [
+    N3Patch("p1", n2_result=n2_patch_1, segmentation_confidence=0.9),
+    N3Patch("p2", n2_result=n2_patch_2, segmentation_confidence=0.8),
+]))
+print(result.candidates)
+```
+
+Install and run all tests with `python -m pip install -e ".[dev]"` followed by
+`python -m pytest`. N3 is an algorithmic research approximation, not a
+validated neural circuit model.
