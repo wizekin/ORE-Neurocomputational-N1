@@ -14,8 +14,14 @@ def test_n2_runs_all_17_steps_and_preserves_spatial_channels():
     assert result.diagnostics["valid"]
     assert result.diagnostics["stage_count"]==17
     assert len(result.metadata["steps"])==17
-    assert result.representations["multiscale"].shape[1:]==(64,64)
-    assert result.representations["contour"].shape==(64,64)
+    # Multiscale layout is [scale, orientation, height, width].
+    # Assert spatial dimensions without discarding the scale/orientation axes.
+    multiscale = result.representations["multiscale"]
+    assert multiscale.ndim == 4
+    assert multiscale.shape[0] == len(N2Config().scales)
+    assert multiscale.shape[1] == n1.stage_outputs["normalized_energy"].shape[0]
+    assert multiscale.shape[-2:] == (64, 64)
+    assert result.representations["contour"].shape == (64, 64)
     assert result.structured_output["schema"]=="ore.n2.structured_visual_output.v1"
     assert "lexical semantics" in result.structured_output["interpretation_scope"]
 
