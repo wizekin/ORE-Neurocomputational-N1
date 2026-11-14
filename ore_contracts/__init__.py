@@ -484,7 +484,7 @@ __all__ = [
 
 # Extended canonical interfaces (P2-P8).
 from .advanced import (
-    AcceptanceStatus, BiologicalValidator, BiologicalVisualBackend, ComputeBudget as _ComputeBudgetAlias,
+    AcceptanceStatus, BiologicalValidator, BiologicalVisualBackend,
     EvaluationReport, ExperimentSpec, FeatureTensor, FunctionalVisualBackend,
     GraphemeEvidence, LearningRequest, LearningResult, MetricRecord,
     NeuralInputEvent, NeuralSimulationConfig, NeuralSimulator, NeuralStateSnapshot,
