@@ -85,7 +85,8 @@ N7_ALGORITHM_STEPS: tuple[str, ...] = (
     "68_construct_ranked_hypothesis_report",
     "69_compute_final_uncertainty_and_confidence",
     "70_validate_result_and_emit_72_operation_trace",
-    "71_return_n7_contextual_predictive_result",
+    "71_validate_final_trace_cardinality",
+    "72_return_n7_contextual_predictive_result",
 )
 
 
