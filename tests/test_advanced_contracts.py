@@ -418,3 +418,25 @@ def test_rate_based_backend_runs_canonical_b_n1_via_controller():
     assert state.step_index == 2
     assert state.simulation_time_ms == 2.0
     assert result.channel_status["B-N1"] == "EXECUTED"
+
+
+def test_legacy_n6_adapter_preserves_multiple_segmentation_alternatives():
+    result = SimpleNamespace(
+        sequence_id="s1", class_names=("a", "b"),
+        decoded_probabilities=np.array([[0.9, 0.1], [0.2, 0.8]]),
+        decoded_graphemes=("a", "b"),
+        segmentation_alternatives=[
+            {"probability": 0.7, "tokens": [
+                {"graphemes": ["a"], "start": 0, "end": 1},
+                {"graphemes": ["b"], "start": 1, "end": 2},
+            ]},
+            {"probability": 0.3, "tokens": [
+                {"graphemes": ["a", "b"], "start": 0, "end": 2},
+            ]},
+        ],
+    )
+    hypotheses = LegacyN6Adapter.to_hypotheses(result, envelope("IF-12"), top_k=3)
+    assert len(hypotheses.candidates) == 2
+    assert hypotheses.candidates[0].graphemes == ("a", "b")
+    assert hypotheses.candidates[1].graphemes == ("a", "b")
+    assert hypotheses.candidates[1].segmentation_path == ("token:0", "token:0")
