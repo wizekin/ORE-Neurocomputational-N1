@@ -186,7 +186,7 @@ def test_if16_experiment_spec_rejects_group_leakage():
     with pytest.raises(ValueError, match="disjoint"):
         ExperimentSpec(
             "exp", "hypothesis", "recognition", {}, (), (), (),
-            "2026-11-14T00:00:00Z", ("writer-1",), (), ("writer-1",),
+            "2026-11-14T00:00:00Z", ("writer-1",), ("writer-2",), ("writer-1",),
             (1, 2), ("accuracy",), (), {"accuracy": 0.9}, "code-v1", "task",
         )
 
