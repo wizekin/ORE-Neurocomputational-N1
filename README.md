@@ -265,3 +265,20 @@ See [docs/N5_ARCHITECTURE.md](docs/N5_ARCHITECTURE.md) and the `ore_n5` package.
 N6 consumes N4 posteriors and an immutable N5 model snapshot. It combines fast/slow forward and reverse transition memories, performs bidirectional sequence inference, estimates word boundaries, and searches a caller-supplied provenance-tracked orthographic lexicon. It preserves ranked alternatives and uses explicit fallback tokens when lexical entries are unavailable. N6 does not modify N4 or N5 and does not infer word meaning.
 
 See [docs/N6_ARCHITECTURE.md](docs/N6_ARCHITECTURE.md) and the `ore_n6` package.
+
+
+## Canonical ORE phase registry and shared contracts
+
+The canonical architecture now distinguishes the functional stages `F-A`–`F-J`
+from the biological phases `B-N1`–`B-N9`. The new framework-neutral
+`ore_contracts` package implements the P0 registry freeze and P1 interfaces
+`IF-00`–`IF-04` (provenance envelope, script profile, run context, visual
+observation and dataset manifest).
+
+The older `ore_n1`–`ore_n9` packages are retained unchanged for compatibility.
+Their historical N labels are not aliases for the canonical biological phase
+IDs. In particular, canonical `B-N8` is independent brain-data validation and
+canonical `B-N9` is system integration/governance.
+
+See [the canonical registry and P1 contract notes](docs/CANONICAL_PHASE_REGISTRY_AND_P1_CONTRACTS.md).
+Run the P1 tests with `python -m pytest tests/test_canonical_contracts.py -q`.
