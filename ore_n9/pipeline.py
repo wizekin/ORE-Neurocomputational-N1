@@ -1189,6 +1189,8 @@ class N9Processor:
             parent_before = _module_fingerprint(self.adapters.n5)
             try:
                 detached_adapter = deepcopy(self.adapters.n5)
+                if detached_adapter is self.adapters.n5:
+                    raise TypeError("N5 adapter did not produce a detached copy")
                 proposal_result = _call_adapter(
                     detached_adapter,
                     {
