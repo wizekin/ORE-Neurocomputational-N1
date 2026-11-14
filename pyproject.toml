@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "ore-neurocomputational-n1"
 version = "0.1.0"
-description = "Modular neurocomputational research implementation for ORE N1 through N6"
+description = "Modular neurocomputational research implementation for ORE N1 through N8"
 readme = "README.md"
 requires-python = ">=3.10"
 license = {file = "LICENSE"}
@@ -16,7 +16,7 @@ dependencies = ["numpy>=1.24", "scipy>=1.10"]
 dev = ["pytest>=7.4", "ruff>=0.4"]
 
 [tool.setuptools.packages.find]
-include = ["ore_n1*", "ore_n2*", "ore_n3*", "ore_n4*", "ore_n5*", "ore_n6*", "ore_n7*"]
+include = ["ore_n1*", "ore_n2*", "ore_n3*", "ore_n4*", "ore_n5*", "ore_n6*", "ore_n7*", "ore_n8*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
