@@ -5,8 +5,8 @@ relabel old N1/N5/N6/N9 work as the new canonical B-N phase ownership.
 """
 from __future__ import annotations
 
-from itertools import product
-from typing import Any, Callable, Mapping, Sequence
+from datetime import datetime, timezone
+from typing import Any, Mapping, Sequence
 
 import numpy as np
 
@@ -15,7 +15,7 @@ from .advanced import (
     FeatureTensor, VisualFeatureBundle, GraphemeEvidence,
     PositionCodeBundle, PositionCodeChannel, OrthographicMemorySnapshot,
     PredictionState, SequenceCandidate, SequenceHypothesisSet,
-    ORERecognitionResult,
+    ORERecognitionResult, NeuralStateSnapshot,
 )
 
 
@@ -39,9 +39,7 @@ def make_envelope(
         run_id=run_id,
         producer_id=producer_id,
         config_hash=sha256_json(dict(config or {})),
-        created_at=__import__("datetime").datetime.now(
-            __import__("datetime").timezone.utc
-        ).isoformat().replace("+00:00", "Z"),
+        created_at=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         evidence_kind=evidence_kind,
         parent_artifact_ids=tuple(parent_artifact_ids),
         sample_id=sample_id,
@@ -342,7 +340,95 @@ class LegacyN9Adapter:
         )
 
 
+class BiologicalStateAdapter:
+    """Adapt simulated/measured neural state without converting units to probabilities."""
+
+    @staticmethod
+    def to_visual_feature_bundle(
+        state: NeuralStateSnapshot, envelope: ContractEnvelope
+    ) -> VisualFeatureBundle:
+        if envelope.contract_id != "IF-05":
+            raise ValueError("expected IF-05 envelope")
+        tensors = []
+        if state.membrane_potential_mv is not None:
+            tensors.append(FeatureTensor(
+                "membrane_potential", state.membrane_potential_mv,
+                "UNIT_VECTOR", "float32", "mV", (),
+                f"{state.model_class}_membrane_potential",
+            ))
+        if state.firing_rate_hz is not None:
+            tensors.append(FeatureTensor(
+                "firing_rate", state.firing_rate_hz,
+                "UNIT_VECTOR", "float32", "Hz", (),
+                f"{state.model_class}_firing_rate",
+            ))
+        if state.synaptic_current is not None:
+            tensors.append(FeatureTensor(
+                "synaptic_current", state.synaptic_current,
+                "UNIT_VECTOR", "float32", state.synaptic_current_units, (),
+                f"{state.model_class}_synaptic_current",
+            ))
+        if not tensors:
+            raise ValueError("neural snapshot contains no available feature arrays")
+        return VisualFeatureBundle(
+            envelope=envelope, feature_tensors=tuple(tensors),
+            source_region_ids=tuple(state.population_unit_indices),
+            producer_kind=f"neural_simulator:{state.simulator_version}",
+            receptive_field_metadata={
+                "model_class": state.model_class,
+                "simulation_time_ms": state.simulation_time_ms,
+                "step_index": state.step_index,
+                "connectivity_fingerprint": state.connectivity_fingerprint,
+                "numerical_status": state.numerical_status,
+            },
+        )
+
+
 __all__ = [
-    "make_envelope", "LegacyN1Adapter", "LegacyN2Adapter", "LegacyN3Adapter",
+    "make_envelope", "BiologicalStateAdapter", "LegacyN1Adapter", "LegacyN2Adapter", "LegacyN3Adapter",
     "LegacyN4Adapter", "LegacyN5Adapter", "LegacyN6Adapter", "LegacyN9Adapter",
 ]
+
+
+class BiologicalStateAdapter:
+    """Adapt simulated/measured neural state without converting units to probabilities."""
+
+    @staticmethod
+    def to_visual_feature_bundle(
+        state: NeuralStateSnapshot, envelope: ContractEnvelope
+    ) -> VisualFeatureBundle:
+        if envelope.contract_id != "IF-05":
+            raise ValueError("expected IF-05 envelope")
+        tensors = []
+        if state.membrane_potential_mv is not None:
+            tensors.append(FeatureTensor(
+                "membrane_potential", state.membrane_potential_mv,
+                "UNIT_VECTOR", "float32", "mV", (),
+                f"{state.model_class}_membrane_potential",
+            ))
+        if state.firing_rate_hz is not None:
+            tensors.append(FeatureTensor(
+                "firing_rate", state.firing_rate_hz,
+                "UNIT_VECTOR", "float32", "Hz", (),
+                f"{state.model_class}_firing_rate",
+            ))
+        if state.synaptic_current is not None:
+            tensors.append(FeatureTensor(
+                "synaptic_current", state.synaptic_current,
+                "UNIT_VECTOR", "float32", state.synaptic_current_units, (),
+                f"{state.model_class}_synaptic_current",
+            ))
+        if not tensors:
+            raise ValueError("neural snapshot contains no available feature arrays")
+        return VisualFeatureBundle(
+            envelope=envelope, feature_tensors=tuple(tensors),
+            source_region_ids=tuple(state.population_unit_indices),
+            producer_kind=f"neural_simulator:{state.simulator_version}",
+            receptive_field_metadata={
+                "model_class": state.model_class,
+                "simulation_time_ms": state.simulation_time_ms,
+                "step_index": state.step_index,
+                "connectivity_fingerprint": state.connectivity_fingerprint,
+                "numerical_status": state.numerical_status,
+            },
+        )
