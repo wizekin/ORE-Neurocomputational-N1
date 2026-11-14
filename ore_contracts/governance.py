@@ -67,6 +67,13 @@ class LearningTransactionManager:
                 "REJECTED", parent_before, None, (), (), provenance={"reason": "learning evidence policy missing"}
             ))
 
+        gates = tuple(regression_gates)
+        if not gates:
+            return LearningTransactionOutcome(LearningResult(
+                "REJECTED", parent_before, None, (), (),
+                provenance={"reason": "at least one regression gate is required"},
+            ))
+
         detached_parent = deepcopy(parent_model)
         try:
             child = proposer(detached_parent, request)
@@ -84,16 +91,18 @@ class LearningTransactionManager:
         if child is None or child is parent_model or child is detached_parent:
             failures.append("proposal did not return a distinct child model")
 
-        for name, gate in regression_gates:
+        for name, gate in gates:
             tests.append(name)
             try:
-                passed = bool(gate(parent_model, child))
+                passed = bool(gate(deepcopy(parent_model), deepcopy(child)))
             except Exception as exc:
                 passed = False
                 failures.append(f"{name}: exception {type(exc).__name__}: {exc}")
             if not passed:
                 failures.append(f"{name}: failed")
 
+        if model_fingerprint(parent_model) != parent_before:
+            failures.append("active parent model mutated during regression evaluation")
         if failures:
             return LearningTransactionOutcome(LearningResult(
                 "ROLLED_BACK", parent_before, None, (), tuple(tests),
@@ -102,6 +111,12 @@ class LearningTransactionManager:
             ))
 
         child_fingerprint = model_fingerprint(child)
+        if child_fingerprint == parent_before:
+            return LearningTransactionOutcome(LearningResult(
+                "REJECTED", parent_before, None, (), tuple(tests),
+                metrics_before or {}, metrics_after or {},
+                provenance={"reason": "proposal produced no fingerprint change"},
+            ))
         declared_parent = getattr(child, "parent_fingerprint", None)
         if declared_parent is not None and declared_parent != parent_before:
             return LearningTransactionOutcome(LearningResult(
