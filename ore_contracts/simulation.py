@@ -131,4 +131,44 @@ class RateBasedNeuralSimulator:
         return self.initialize()
 
 
-__all__ = ["RateBasedNeuralSimulator", "NeuralSimulator", "NeuralSimulationConfig"]
+class RateBasedB1PhaseBackend:
+    """Runnable canonical B-N1 phase adapter over the reference rate simulator.
+
+    The caller passes a mapping with optional simulation_steps and neural_inputs.
+    The result is an IF-18 snapshot, not a claim of cellular or spiking fidelity.
+    """
+
+    def __init__(self, config: NeuralSimulationConfig) -> None:
+        self.config = config
+        self.simulator = RateBasedNeuralSimulator(config)
+
+    def run(self, invocation) -> NeuralStateSnapshot:
+        if getattr(invocation, "phase_id", None) != "B-N1":
+            raise ValueError("RateBasedB1PhaseBackend only owns canonical B-N1")
+        payload = getattr(invocation, "latest_input", None)
+        if not isinstance(payload, dict):
+            payload = getattr(invocation, "original_payload", {})
+        if not isinstance(payload, dict):
+            payload = {}
+        steps = int(payload.get("simulation_steps", 1))
+        if steps < 1:
+            raise ValueError("simulation_steps must be positive")
+        events = tuple(payload.get("neural_inputs", ()))
+        if any(not isinstance(event, NeuralInputEvent) for event in events):
+            raise TypeError("neural_inputs must contain NeuralInputEvent objects")
+        events = tuple(sorted(events, key=lambda event: (event.event_time_ms, event.unit_index)))
+        state = self.simulator.initialize()
+        cursor = 0
+        for _ in range(steps):
+            end_time = state.simulation_time_ms + self.config.dt_ms
+            batch = []
+            while cursor < len(events) and events[cursor].event_time_ms <= end_time:
+                batch.append(events[cursor])
+                cursor += 1
+            state = self.simulator.step(state, batch, self.config.dt_ms)
+        if cursor != len(events):
+            raise ValueError("one or more neural input events fall beyond simulation_steps")
+        return state
+
+
+__all__ = ["RateBasedNeuralSimulator", "RateBasedB1PhaseBackend", "NeuralSimulator", "NeuralSimulationConfig"]
