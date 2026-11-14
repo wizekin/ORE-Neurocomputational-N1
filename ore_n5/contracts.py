@@ -209,10 +209,10 @@ class N5ModelState:
 
     def to_n3_processor(self, config: Any | None = None) -> Any:
         """Export a detached effective child model for subsequent N3 inference."""
-        from .config import N3Config
-        from .contracts import UNKNOWN_LABEL as N3_UNKNOWN
-        from .pipeline import N3Processor
-        from .transitions import OrthographicTransitionModel
+        from ore_n3.config import N3Config
+        from ore_n3.contracts import UNKNOWN_LABEL as N3_UNKNOWN
+        from ore_n3.pipeline import N3Processor
+        from ore_n3.transitions import OrthographicTransitionModel
         from .stages import normalize_rows
 
         if N3_UNKNOWN != UNKNOWN_LABEL:
