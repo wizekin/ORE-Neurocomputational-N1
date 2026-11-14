@@ -1,5 +1,6 @@
 """N3 training and recurrent orthographic prediction pipeline (29 explicit steps)."""
 from __future__ import annotations
+from dataclasses import asdict
 from typing import Any, Iterable
 import time
 import numpy as np
@@ -296,6 +297,8 @@ class N3Processor:
         metadata = {
             "pipeline": "ORE N3 Recurrent Orthographic Prediction and Error",
             "version": "0.1.0",
+            "config": asdict(self.config),
+            "training_trace": self.training_trace,
             "sequence_id": sequence.sequence_id,
             "position_count": len(patches),
             "feature_dimension": int(normalized_features.shape[1]),
