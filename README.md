@@ -252,3 +252,16 @@ Learning is disabled unless \`learning_authorized=True\`. An N5 adapter is
 deep-copied before a child-model proposal; the active parent model is checked
 for mutation. Software tests do not establish real-corpus accuracy or
 biological validity. See [docs/N9_ARCHITECTURE.md](docs/N9_ARCHITECTURE.md).
+
+
+## N5 — 52-operation experience-dependent plasticity
+
+N5 is a distinct, explicitly authorized learning stage after N4. It requires independently verified labels and provenance, preserves the parent N3-derived model, and returns a separately fingerprinted child model. Its 52 traced operations include fast/slow Oja-style prototype adaptation, eligibility traces, replay, homeostatic gain control, bounded drift, and fast/slow transition memories. N4 attention and precision signals can modulate learning. Recognition remains read-only; learning is a separate operation.
+
+See [docs/N5_ARCHITECTURE.md](docs/N5_ARCHITECTURE.md) and the `ore_n5` package.
+
+## N6 — 60-operation hierarchical orthographic access
+
+N6 consumes N4 posteriors and an immutable N5 model snapshot. It combines fast/slow forward and reverse transition memories, performs bidirectional sequence inference, estimates word boundaries, and searches a caller-supplied provenance-tracked orthographic lexicon. It preserves ranked alternatives and uses explicit fallback tokens when lexical entries are unavailable. N6 does not modify N4 or N5 and does not infer word meaning.
+
+See [docs/N6_ARCHITECTURE.md](docs/N6_ARCHITECTURE.md) and the `ore_n6` package.
