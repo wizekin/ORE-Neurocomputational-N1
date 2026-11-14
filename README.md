@@ -282,3 +282,12 @@ canonical `B-N9` is system integration/governance.
 
 See [the canonical registry and P1 contract notes](docs/CANONICAL_PHASE_REGISTRY_AND_P1_CONTRACTS.md).
 Run the P1 tests with `python -m pytest tests/test_canonical_contracts.py -q`.
+
+
+## Canonical ORE shared interfaces — P2 through P8
+
+The canonical registry is now extended with shared interfaces **IF-05–IF-18**, a rate-based IF-18 neural simulation reference, guarded learning transactions, preregistered multi-seed experiment/evaluation contracts, adapters for legacy module outputs, and the dependency-injected B-N9 controller.
+
+See [the P2–P8 implementation notes](docs/CANONICAL_ORE_P2_P8_IMPLEMENTATION.md) and run the complete suite with `python -m pytest`.
+
+Important scope boundary: the existing `ore_n1`–`ore_n9` modules remain legacy-compatible packages, not aliases for canonical `B-N1`–`B-N9`. The controller reports missing canonical biological backends as unavailable. The included B-N1 rate simulator is a computational reference, not a validated cellular model; canonical B-N2–B-N8 biological implementations and independent brain-data validation remain future scientific work.
