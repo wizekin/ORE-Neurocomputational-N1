@@ -109,6 +109,9 @@ class GraphemeEvidence:
             raise ValueError("unknown_probability must be in [0, 1]")
         if abs(float(values.sum()) - 1.0) > 1e-4:
             raise ValueError("probabilities, including any explicit UNK entry, must sum to one")
+        expected_unknown = float(self.probabilities.get("<UNK>", 0.0))
+        if abs(expected_unknown - self.unknown_probability) > 1e-4:
+            raise ValueError("unknown_probability must match the explicit <UNK> probability mass")
         if not 0 <= self.reliability <= 1:
             raise ValueError("reliability must be in [0, 1]")
         if self.entropy is not None and (not np.isfinite(self.entropy) or self.entropy < 0):
@@ -297,6 +300,8 @@ class SequenceCandidate:
     def __post_init__(self) -> None:
         if not self.graphemes:
             raise ValueError("candidate must contain a grapheme sequence")
+        if self.segmentation_path and len(self.segmentation_path) != len(self.graphemes):
+            raise ValueError("segmentation_path must align one-to-one with graphemes")
         if not 0 <= self.confidence <= 1:
             raise ValueError("candidate confidence must be in [0, 1]")
         if set(self.component_scores) - {"S_vis", "S_geometry", "S_position", "S_ortho", "S_recurrent", "S_predictive", "S_neural"}:
@@ -345,6 +350,8 @@ class ORERecognitionResult:
             raise ValueError("ORERecognitionResult requires an IF-13 envelope")
         if self.status not in {"RESOLVED", "AMBIGUOUS", "PARTIAL", "ABSTAINED", "FAILED"}:
             raise ValueError("unsupported recognition status")
+        if self.status == "RESOLVED" and (self.hypotheses.abstained or not self.hypotheses.candidates):
+            raise ValueError("RESOLVED requires at least one non-abstained hypothesis")
         if self.confidence is not None and not 0 <= self.confidence <= 1:
             raise ValueError("confidence must be in [0, 1]")
 
@@ -388,7 +395,7 @@ class NeuralInputEvent:
     signal_kind: str = "current"
 
     def __post_init__(self) -> None:
-        if self.unit_index < 0 or not np.isfinite(self.value) or not np.isfinite(self.event_time_ms):
+        if self.unit_index < 0 or not np.isfinite(self.value) or not np.isfinite(self.event_time_ms) or self.event_time_ms < 0:
             raise ValueError("neural input event fields are invalid")
         _nonempty(self.signal_kind, "signal_kind")
 
@@ -408,7 +415,7 @@ class NeuralSimulationConfig:
     def __post_init__(self) -> None:
         if not self.population_sizes or len({p for p, _ in self.population_sizes}) != len(self.population_sizes):
             raise ValueError("population IDs must be non-empty and unique")
-        if any(not p or int(n) <= 0 for p, n in self.population_sizes):
+        if any(not p or not isinstance(n, int) or isinstance(n, bool) or n <= 0 for p, n in self.population_sizes):
             raise ValueError("population sizes must be positive")
         n = sum(size for _, size in self.population_sizes)
         weights = _frozen_array(self.recurrent_weights, "recurrent_weights", ndim=2)
@@ -457,6 +464,9 @@ class NeuralStateSnapshot:
             raise ValueError("firing rate must be one-dimensional")
         if self.synaptic_current is not None and self.synaptic_current.ndim != 1:
             raise ValueError("synaptic current must be one-dimensional")
+        arrays = [value for value in (self.membrane_potential_mv, self.firing_rate_hz, self.synaptic_current) if value is not None]
+        if arrays and any(value.shape != arrays[0].shape for value in arrays):
+            raise ValueError("all available neural state arrays must use the same stable unit indexing")
         _nonempty(self.synaptic_current_units, "synaptic_current_units")
         _nonempty(self.connectivity_fingerprint, "connectivity_fingerprint")
         _nonempty(self.simulator_version, "simulator_version")
@@ -582,8 +592,15 @@ def evaluate_experiment(
     )
     failures = [f"software check failed: {key}" for key, passed in checks.items() if not passed]
 
-    def gate(records: Sequence[MetricRecord], require_independent: bool = False) -> AcceptanceStatus:
+    def gate(
+        records: Sequence[MetricRecord],
+        require_independent: bool = False,
+        require_test_split: bool = False,
+    ) -> AcceptanceStatus:
         if not records:
+            return AcceptanceStatus.PENDING
+        if require_test_split and any(metric.split != "TEST" for metric in records):
+            failures.append("held-out task/robustness/cost metrics must use the sealed TEST split")
             return AcceptanceStatus.PENDING
         for metric in records:
             threshold = spec.thresholds.get(metric.name)
@@ -597,9 +614,9 @@ def evaluate_experiment(
                 return AcceptanceStatus.PENDING
         return AcceptanceStatus.PASS
 
-    task = gate(task_metrics)
-    robustness = gate(robustness_metrics)
-    cost = gate(cost_metrics)
+    task = gate(task_metrics, require_test_split=True)
+    robustness = gate(robustness_metrics, require_test_split=True)
+    cost = gate(cost_metrics, require_test_split=True)
     behavioral = gate(behavioral_metrics, require_independent=True)
     neural = gate(neural_metrics, require_independent=True)
     all_metrics = tuple(task_metrics) + tuple(robustness_metrics) + tuple(cost_metrics) + tuple(behavioral_metrics) + tuple(neural_metrics)
