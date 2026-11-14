@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field, asdict
 from enum import Enum
-from typing import Any, Mapping, Protocol, Sequence, runtime_checkable
+from typing import Any, Callable, Mapping, Protocol, Sequence, runtime_checkable
 
 import numpy as np
 
@@ -597,6 +597,60 @@ def evaluate_experiment(
         spec.experiment_id, software, task, robustness, cost, behavioral, neural,
         all_metrics, tuple(failures), tuple(limitations),
     )
+
+
+@dataclass(frozen=True, slots=True)
+class SeededReplicate:
+    seed: int
+    status: str
+    metrics: Mapping[str, float] = field(default_factory=dict)
+    error: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class ExperimentExecutionReport:
+    """Execution evidence across predeclared fixed seeds; not an acceptance verdict."""
+
+    experiment_id: str
+    replicates: tuple[SeededReplicate, ...]
+
+    @property
+    def successful_seeds(self) -> tuple[int, ...]:
+        return tuple(item.seed for item in self.replicates if item.status == "COMPLETED")
+
+    @property
+    def failed_seeds(self) -> tuple[int, ...]:
+        return tuple(item.seed for item in self.replicates if item.status != "COMPLETED")
+
+
+def run_seeded_replicates(
+    spec: ExperimentSpec,
+    runner: Callable[[ExperimentSpec, int], Mapping[str, float]],
+) -> ExperimentExecutionReport:
+    """Run one isolated callback per preregistered seed.
+
+    The runner receives the seed explicitly and is responsible for constructing
+    its own seeded RNGs. Exceptions are recorded as failed replicates; no metric
+    is synthesized for a failed run.
+    """
+    if not callable(runner):
+        raise TypeError("runner must be callable")
+    output = []
+    for seed in spec.seeds:
+        try:
+            values = runner(spec, seed)
+            if not isinstance(values, Mapping):
+                raise TypeError("runner must return a metric mapping")
+            metrics = {str(name): float(value) for name, value in values.items()}
+            if not metrics or any(not np.isfinite(value) for value in metrics.values()):
+                raise ValueError("runner metrics must be non-empty and finite")
+            output.append(SeededReplicate(seed, "COMPLETED", metrics))
+        except Exception as exc:
+            output.append(SeededReplicate(
+                seed, "FAILED", {},
+                f"{type(exc).__name__}: {exc}",
+            ))
+    return ExperimentExecutionReport(spec.experiment_id, tuple(output))
 
 
 @dataclass(frozen=True, slots=True)
