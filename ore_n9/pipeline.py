@@ -773,7 +773,9 @@ class N9Processor:
                 indices = np.argmax(local_rows, axis=1)
                 symbols = [class_names[int(idx)] for idx in indices]
                 form = "".join(symbol for symbol in symbols if symbol != "<UNK>")
-                confidence = float(np.prod(np.max(local_rows, axis=1)))
+                confidence = (
+                    float(np.prod(np.max(local_rows, axis=1))) if form else 0.0
+                )
                 lexical_hypotheses.append({
                     "form": form,
                     "start": start,
