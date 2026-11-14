@@ -214,12 +214,16 @@ class LearningRequest:
             _nonempty(getattr(self, name), name)
         if not self.training_sample_ids or len(set(self.training_sample_ids)) != len(self.training_sample_ids):
             raise ValueError("training_sample_ids must be non-empty and unique")
-        if not self.update_channels:
-            raise ValueError("at least one update channel must be declared")
+        if not self.update_channels or len(set(self.update_channels)) != len(self.update_channels):
+            raise ValueError("update channels must be non-empty and unique")
         if not self.verified_targets and not self.unsupervised_regime:
             raise ValueError("verified targets or an explicitly named unsupervised regime is required")
+        if set(self.verified_targets) - set(self.training_sample_ids):
+            raise ValueError("verified targets must refer only to declared training samples")
         if self.verified_targets and any(k not in self.verification_provenance for k in self.verified_targets):
             raise ValueError("every verified target requires reviewer/source provenance")
+        if not isinstance(self.explicitly_authorized, bool):
+            raise ValueError("explicitly_authorized must be a boolean")
 
 
 @dataclass(frozen=True, slots=True)
@@ -490,6 +494,15 @@ class ExperimentSpec:
             raise ValueError("experiment seeds must be non-empty, unique, non-negative integers")
         if set(self.train_groups) & set(self.validation_groups) or set(self.train_groups) & set(self.test_groups) or set(self.validation_groups) & set(self.test_groups):
             raise ValueError("train, validation and test groups must be disjoint")
+        if not self.train_groups or not self.validation_groups or not self.test_groups:
+            raise ValueError("train, validation and test groups must each be declared")
+        try:
+            from datetime import datetime, timezone
+            timestamp = datetime.fromisoformat(self.preregistered_at_utc.replace("Z", "+00:00"))
+        except (TypeError, ValueError) as exc:
+            raise ValueError("preregistered_at_utc must be an ISO-8601 timestamp") from exc
+        if timestamp.tzinfo is None or timestamp.utcoffset() != timezone.utc.utcoffset(timestamp):
+            raise ValueError("preregistered_at_utc must be UTC")
         if not self.dependent_variables:
             raise ValueError("at least one dependent variable is required")
         if any(not np.isfinite(value) for value in self.thresholds.values()):
@@ -517,6 +530,8 @@ class MetricRecord:
             _nonempty(getattr(self, name), name)
         if not np.isfinite(self.value) or self.sample_size < 1:
             raise ValueError("metric value must be finite and sample_size positive")
+        if not self.seeds or any(seed < 0 for seed in self.seeds):
+            raise ValueError("metric records must identify non-negative random seeds")
         if self.split not in {"TRAIN", "VALIDATION", "TEST", "EXTERNAL_REFERENCE"}:
             raise ValueError("invalid metric split")
         if self.confidence_interval is not None:
