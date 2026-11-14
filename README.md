@@ -1,6 +1,6 @@
-# ORE Neurocomputational — N1, N2, and N3
+# ORE Neurocomputational — N1, N2, N3, and N4
 
-A modular Python implementation of the ORE N1 early-visual-processing, N2 visual-organization, and N3 recurrent orthographic-prediction research pipelines. It exposes intermediate representations, configurable computational approximations, uncertainty, recurrent state, and per-stage diagnostics.
+A modular Python implementation of the ORE N1 early-visual-processing, N2 visual-organization, N3 recurrent orthographic-prediction, and N4 attention/precision-gating research pipelines. It exposes intermediate representations, configurable computational approximations, uncertainty, recurrent state, and per-stage diagnostics.
 
 > Scientific scope: this is a biologically motivated computational approximation. It is not a cellular simulation, a fitted model of a particular species, or evidence that ORE reproduces the complete human visual system. Default parameters are engineering starting points and require calibration against empirical data before physiological claims are made.
 
@@ -166,3 +166,33 @@ print(result.candidates)
 Install and run all tests with `python -m pip install -e ".[dev]"` followed by
 `python -m pytest`. N3 is an algorithmic research approximation, not a
 validated neural circuit model.
+
+
+## N4 attention and precision gating (40 operations)
+
+The repository includes an independent **ore_n4** package that consumes an N3 result without modifying it. N4 derives bottom-up salience from visual uncertainty, N3 classwise prediction error, and visual/prior disagreement; optionally integrates task and class goals; allocates competitive attention across sequence positions; computes class-selective attention gates; and modulates sensory/prior precision during bounded belief updates.
+
+The stage preserves N3 visual probabilities and contextual priors as separate channels. Its output contains the attention allocation, bottom-up and top-down signals, class gates, precision vectors, attended posterior, ranked alternatives, diagnostics, and a trace of all 40 operations.
+
+See [docs/N4_ARCHITECTURE.md](docs/N4_ARCHITECTURE.md) for the operation-by-operation algorithm, equations, API, tests, and scientific limitations.
+
+Quick start:
+
+    from ore_n4 import N4Config, N4Input, N4Processor
+
+    result = N4Processor(N4Config()).process(
+        N4Input(n3_result, task_relevance=[0.0, 1.0, 0.0])
+    )
+    print(result.candidates)
+    print(result.diagnostics["valid"])
+
+Run focused N4 tests with:
+
+    python -m pytest tests/test_n4.py -q
+
+Run the full repository suite with:
+
+    python -m pip install -e ".[dev]"
+    python -m pytest
+
+N4 is an algorithmic research approximation. Its attention and precision parameters are engineering hypotheses, not measured neural constants; software tests do not establish biological validity.
