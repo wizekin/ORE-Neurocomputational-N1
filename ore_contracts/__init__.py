@@ -495,7 +495,7 @@ from .advanced import (
 )
 from .adapters import (
     LegacyN1Adapter, LegacyN2Adapter, LegacyN3Adapter, LegacyN4Adapter,
-    LegacyN5Adapter, LegacyN6Adapter, LegacyN9Adapter, make_envelope,
+    LegacyN5Adapter, LegacyN6Adapter, LegacyN9Adapter, BiologicalStateAdapter, make_envelope,
 )
 from .governance import LearningTransactionManager, LearningTransactionOutcome, model_fingerprint
 from .integration import (
@@ -518,7 +518,7 @@ __all__ += [
     "BiologicalValidator", "VisualFeatureBundle", "MetricRecord",
     "evaluate_experiment", "RateBasedNeuralSimulator",
     "LearningTransactionManager", "LearningTransactionOutcome", "model_fingerprint",
-    "make_envelope", "LegacyN1Adapter", "LegacyN2Adapter", "LegacyN3Adapter",
+    "make_envelope", "BiologicalStateAdapter", "LegacyN1Adapter", "LegacyN2Adapter", "LegacyN3Adapter",
     "LegacyN4Adapter", "LegacyN5Adapter", "LegacyN6Adapter", "LegacyN9Adapter",
     "CANONICAL_BIOLOGICAL_PHASES", "INFERENCE_BIOLOGICAL_PHASES",
     "PhaseInvocation", "FunctionalEngine", "BiologicalPhaseBackend",
