@@ -741,6 +741,7 @@ class N8Processor:
             for candidate in token["candidates"]:
                 if candidate["concept_id"] is not None:
                     activations[candidate["concept_id"]] += float(candidate["probability"])
+        mark(64, activated_concept_count=len(activations))
         total_activation = float(sum(activations.values()))
         normalized_activations = {
             key: value / total_activation for key, value in activations.items()
