@@ -4,7 +4,7 @@ import pytest
 
 from ore_contracts import (
     ALL_PHASES, BIOLOGICAL_PHASES, FUNCTIONAL_PHASES, ArtifactStatus,
-    ComputeBudget, ContractEnvelope, DatasetManifest, DatasetSample,
+    ComputeBudget, ContractEnvelope, DatasetManifest, DatasetSample, ModelBundleRef,
     EvidenceKind, OperationMode, ReadingDirection, RunContext, ScriptProfile,
     SegmentationHypothesis, VisualObservation, sha256_json, validate_registry,
 )
@@ -61,6 +61,11 @@ def test_mixed_direction_requires_policy():
 def test_run_context_rejects_negative_seed_and_keeps_budget():
     item = RunContext("run-2", OperationMode.HYBRID, 17, ComputeBudget(5.0, 12, 256.0))
     assert item.to_dict()["mode"] == "HYBRID"
+    assert RunContext.from_dict(item.to_dict()) == item
+    model = ModelBundleRef("functional", "1.0", A, "1.0", parent_fingerprint=B)
+    with_model = RunContext("run-4", OperationMode.FUNCTIONAL, 2, ComputeBudget(),
+                            model_refs=(model,))
+    assert RunContext.from_dict(with_model.to_dict()) == with_model
     with pytest.raises(ValueError, match="cannot be negative"):
         RunContext("run-3", OperationMode.INFER, -1, ComputeBudget())
 
