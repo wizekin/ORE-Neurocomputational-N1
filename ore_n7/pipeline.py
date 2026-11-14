@@ -412,11 +412,11 @@ class N7Processor:
             "all_probabilities_finite": bool(np.isfinite(revised).all()),
             "scientific_acceptance": "PENDING_INDEPENDENT_EMPIRICAL_VALIDATION",
         }
-        mark(67, diagnostics_valid=True)
+        mark(67, diagnostics_valid=bool(np.isfinite(revised).all() and np.isclose(revised.sum(), 1.0)))
         # Complete the final five operation slots as explicit validation/reporting operations.
         mark(68, result_schema="ore.n7.predictive_contextual_processing.v1")
         mark(69, evidence_preserved=True)
-        mark(70, ranked_hypotheses=len(ranked))
+        mark(70, ranked_hypotheses=len(ranked), ranked_order_valid=all(\n            ranked[i]["probability"] >= ranked[i+1]["probability"] for i in range(len(ranked)-1)\n        ))
         mark(71, trace_complete=(len(trace)+2==72))
         metadata = {
             "schema":"ore.n7.predictive_contextual_processing.v1",
