@@ -83,7 +83,7 @@ BIOLOGICAL_PHASES = (
 ALL_PHASES = FUNCTIONAL_PHASES + BIOLOGICAL_PHASES
 PHASE_BY_ID = {phase.phase_id: phase for phase in ALL_PHASES}
 FUNCTIONAL_TO_BIOLOGICAL = {
-    "F-A": ("B-N1",), "F-B": ("B-N2", "B-N3", "B-N8"),
+    "F-A": tuple(f"B-N{i}" for i in range(1, 10)), "F-B": ("B-N2", "B-N3", "B-N8"),
     "F-C": ("B-N2", "B-N3"), "F-D": ("B-N4",),
     "F-E": ("B-N6", "B-N7"), "F-F": ("B-N1", "B-N6"),
     "F-G": ("B-N2", "B-N3", "B-N4", "B-N5", "B-N6", "B-N7"),
@@ -238,6 +238,14 @@ class ModelBundleRef:
         for field in ("family", "version", "fingerprint", "schema_version"):
             if not getattr(self, field).strip():
                 raise ValueError(f"ModelBundleRef.{field} must be non-empty.")
+        _require_sha256(self.fingerprint, "model fingerprint")
+        _require_sha256(self.parent_fingerprint, "parent_fingerprint", optional=True)
+
+    @classmethod
+    def from_dict(cls, value: Mapping[str, Any]) -> "ModelBundleRef":
+        data = dict(value)
+        data["script_profile_compatibility"] = tuple(data.get("script_profile_compatibility", ()))
+        return cls(**data)
 
 
 @dataclass(frozen=True, slots=True)
@@ -291,6 +299,19 @@ class RunContext:
         data["module_backend_selection"] = dict(self.module_backend_selection)
         data["timeout_limits_seconds"] = dict(self.timeout_limits_seconds)
         return data
+
+    @classmethod
+    def from_dict(cls, value: Mapping[str, Any]) -> "RunContext":
+        data = dict(value)
+        data["mode"] = OperationMode(data["mode"])
+        data["compute_budget"] = ComputeBudget(**data["compute_budget"])
+        data["module_backend_selection"] = tuple(sorted(dict(data.get("module_backend_selection", {})).items()))
+        data["timeout_limits_seconds"] = tuple(sorted(dict(data.get("timeout_limits_seconds", {})).items()))
+        data["model_refs"] = tuple(
+            item if isinstance(item, ModelBundleRef) else ModelBundleRef.from_dict(item)
+            for item in data.get("model_refs", ())
+        )
+        return cls(**data)
 
 
 @dataclass(frozen=True, slots=True)
