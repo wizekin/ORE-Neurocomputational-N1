@@ -114,7 +114,7 @@ class LearningTransactionManager:
         result = LearningResult(
             "ACCEPTED", parent_before, child_fingerprint,
             tuple(request.update_channels), tuple(tests),
-            metrics_before or {}, metrics_after or (), (),
+            metrics_before or {}, metrics_after or {}, (),
             {"parent_unchanged": True, "promotion": "NOT_PERFORMED"},
         )
         return LearningTransactionOutcome(result, child)
