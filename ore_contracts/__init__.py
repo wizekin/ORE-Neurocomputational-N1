@@ -480,3 +480,50 @@ __all__ = [
     "SegmentationHypothesis", "VisualObservation", "DatasetSample",
     "DatasetManifest",
 ]
+
+
+# Extended canonical interfaces (P2-P8).
+from .advanced import (
+    AcceptanceStatus, BiologicalValidator, BiologicalVisualBackend,
+    EvaluationReport, ExperimentSpec, FeatureTensor, FunctionalVisualBackend,
+    GraphemeEvidence, LearningRequest, LearningResult, MetricRecord,
+    NeuralInputEvent, NeuralSimulationConfig, NeuralSimulator, NeuralStateSnapshot,
+    ORERecognitionResult, OrthographicBackend, OrthographicMemorySnapshot,
+    PlasticityBackend, PositionCodeBundle, PositionCodeChannel, PredictiveBackend,
+    PredictionState, RecurrentBackend, SequenceCandidate, SequenceDecoder,
+    SequenceHypothesisSet, TraceEvent, VisualFeatureBundle, evaluate_experiment,
+    SeededReplicate, ExperimentExecutionReport, run_seeded_replicates,
+)
+from .adapters import (
+    LegacyN1Adapter, LegacyN2Adapter, LegacyN3Adapter, LegacyN4Adapter,
+    LegacyN5Adapter, LegacyN6Adapter, LegacyN9Adapter, BiologicalStateAdapter, make_envelope,
+)
+from .governance import LearningTransactionManager, LearningTransactionOutcome, model_fingerprint
+from .integration import (
+    CANONICAL_BIOLOGICAL_PHASES, INFERENCE_BIOLOGICAL_PHASES,
+    BiologicalPhaseBackend, CanonicalBackendRegistry, CanonicalOREController,
+    CanonicalRunResult, FrozenFusionPolicy, FunctionalEngine,
+    LegacyN9FunctionalBackend, PhaseInvocation,
+)
+from .simulation import RateBasedB1PhaseBackend, RateBasedNeuralSimulator
+
+__all__ += [
+    "AcceptanceStatus", "EvaluationReport", "ExperimentSpec", "FeatureTensor",
+    "GraphemeEvidence", "PositionCodeChannel", "PositionCodeBundle",
+    "OrthographicMemorySnapshot", "LearningRequest", "LearningResult",
+    "PredictionState", "SequenceCandidate", "SequenceHypothesisSet",
+    "ORERecognitionResult", "TraceEvent", "NeuralInputEvent",
+    "NeuralSimulationConfig", "NeuralStateSnapshot", "NeuralSimulator",
+    "FunctionalVisualBackend", "BiologicalVisualBackend", "OrthographicBackend",
+    "RecurrentBackend", "PlasticityBackend", "PredictiveBackend", "SequenceDecoder",
+    "BiologicalValidator", "VisualFeatureBundle", "MetricRecord",
+    "evaluate_experiment", "SeededReplicate", "ExperimentExecutionReport",
+    "run_seeded_replicates", "RateBasedNeuralSimulator", "RateBasedB1PhaseBackend",
+    "LearningTransactionManager", "LearningTransactionOutcome", "model_fingerprint",
+    "make_envelope", "BiologicalStateAdapter", "LegacyN1Adapter", "LegacyN2Adapter", "LegacyN3Adapter",
+    "LegacyN4Adapter", "LegacyN5Adapter", "LegacyN6Adapter", "LegacyN9Adapter",
+    "CANONICAL_BIOLOGICAL_PHASES", "INFERENCE_BIOLOGICAL_PHASES",
+    "PhaseInvocation", "FunctionalEngine", "BiologicalPhaseBackend",
+    "FrozenFusionPolicy", "CanonicalBackendRegistry", "CanonicalRunResult",
+    "CanonicalOREController", "LegacyN9FunctionalBackend",
+]

@@ -1,0 +1,444 @@
+"""Explicit adapters from legacy ORE result objects into canonical contracts.
+
+Legacy package names are preserved as provenance. These adapters do not
+relabel old N1/N5/N6/N9 work as the new canonical B-N phase ownership.
+"""
+from __future__ import annotations
+
+from datetime import datetime, timezone
+from typing import Any, Mapping, Sequence
+
+import numpy as np
+
+from . import ContractEnvelope, EvidenceKind, sha256_json
+from .advanced import (
+    FeatureTensor, VisualFeatureBundle, GraphemeEvidence,
+    PositionCodeBundle, PositionCodeChannel, OrthographicMemorySnapshot,
+    PredictionState, SequenceCandidate, SequenceHypothesisSet,
+    ORERecognitionResult, NeuralStateSnapshot,
+)
+
+
+def make_envelope(
+    contract_id: str,
+    run_id: str,
+    producer_id: str,
+    *,
+    config: Mapping[str, Any] | None = None,
+    evidence_kind: EvidenceKind = EvidenceKind.DERIVED,
+    sample_id: str | None = None,
+    data_hash: str | None = None,
+    script_profile_id: str | None = None,
+    parent_artifact_ids: Sequence[str] = (),
+    model_version: str | None = None,
+) -> ContractEnvelope:
+    """Create a provenance-complete envelope using a canonical config digest."""
+    return ContractEnvelope(
+        contract_id=contract_id,
+        schema_version="1.0.0",
+        run_id=run_id,
+        producer_id=producer_id,
+        config_hash=sha256_json(dict(config or {})),
+        created_at=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        evidence_kind=evidence_kind,
+        parent_artifact_ids=tuple(parent_artifact_ids),
+        sample_id=sample_id,
+        model_version=model_version,
+        script_profile_id=script_profile_id,
+        data_hash=data_hash,
+    )
+
+
+class LegacyN1Adapter:
+    """Preserve legacy N1 feature maps as computational visual features."""
+
+    @staticmethod
+    def to_visual_feature_bundle(result: Any, envelope: ContractEnvelope) -> VisualFeatureBundle:
+        if envelope.contract_id != "IF-05":
+            raise ValueError("expected IF-05 envelope")
+        outputs = getattr(result, "stage_outputs", None)
+        if not isinstance(outputs, Mapping):
+            raise TypeError("legacy N1 result must expose stage_outputs")
+        tensors: list[FeatureTensor] = []
+        for key in ("normalized_energy", "temporal_activity", "spatial_pooled", "feature_vector"):
+            value = outputs.get(key)
+            if value is None:
+                continue
+            array = np.asarray(value)
+            layout = {
+                "normalized_energy": "ORIENTATION_Y_X",
+                "temporal_activity": "ORIENTATION_Y_X",
+                "spatial_pooled": "ORIENTATION_GRID_Y_GRID_X",
+                "feature_vector": "FLAT",
+            }[key]
+            tensors.append(FeatureTensor(
+                name=key,
+                values=array,
+                layout=layout,
+                dtype=str(array.dtype),
+                units="computational_activation",
+                spatial_resolution=tuple(int(v) for v in array.shape[-2:]) if array.ndim >= 2 else (),
+                representation_kind="legacy_ore_n1_visual_approximation",
+            ))
+        if not tensors:
+            raise ValueError("legacy N1 result contains no supported feature tensors")
+        return VisualFeatureBundle(
+            envelope=envelope,
+            feature_tensors=tuple(tensors),
+            source_region_ids=(envelope.sample_id or "unspecified-region",),
+            producer_kind="legacy_ore_n1_adapter",
+            receptive_field_metadata=dict(getattr(result, "metadata", {}) or {}),
+        )
+
+
+class LegacyN2Adapter:
+    """Adapt legacy N2 representations without assigning canonical biological ownership."""
+
+    @staticmethod
+    def to_visual_feature_bundle(result: Any, envelope: ContractEnvelope) -> VisualFeatureBundle:
+        if envelope.contract_id != "IF-05":
+            raise ValueError("expected IF-05 envelope")
+        representations = getattr(result, "representations", None)
+        if not isinstance(representations, Mapping):
+            raise TypeError("legacy N2 result must expose representations")
+        tensors = []
+        for name, value in representations.items():
+            if not isinstance(value, np.ndarray):
+                continue
+            tensors.append(FeatureTensor(
+                name=str(name), values=value, layout="OPAQUE_N2_LAYOUT",
+                dtype=str(value.dtype), units="computational_activation",
+                spatial_resolution=tuple(int(v) for v in value.shape[-2:]) if value.ndim >= 2 else (),
+                representation_kind="legacy_ore_n2_visual_structure",
+            ))
+        if not tensors:
+            raise ValueError("legacy N2 result contains no array representations")
+        return VisualFeatureBundle(
+            envelope, tuple(tensors), (envelope.sample_id or "unspecified-region",),
+            "legacy_ore_n2_adapter",
+            receptive_field_metadata=dict(getattr(result, "metadata", {}) or {}),
+        )
+
+
+class LegacyN3Adapter:
+    """Adapt N3 bottom-up probabilities without claiming they are calibrated."""
+
+    @staticmethod
+    def to_grapheme_evidence(
+        result: Any,
+        envelopes: Sequence[ContractEnvelope],
+        *,
+        inventory_version: str = "legacy-n3-v1",
+    ) -> tuple[GraphemeEvidence, ...]:
+        probabilities = np.asarray(getattr(result, "visual_probabilities", None), dtype=float)
+        class_names = tuple(getattr(result, "class_names", ()))
+        if probabilities.ndim != 2 or probabilities.shape[1] != len(class_names):
+            raise ValueError("N3 visual probability matrix and class vocabulary are incompatible")
+        if len(envelopes) != probabilities.shape[0]:
+            raise ValueError("one IF-06 envelope is required per patch")
+        candidates = list(getattr(result, "candidates", []) or [])
+        if candidates and len(candidates) != probabilities.shape[0]:
+            raise ValueError("N3 candidates must align with probability rows")
+        output = []
+        for index, row in enumerate(probabilities):
+            if not np.isfinite(row).all() or np.any(row < 0) or row.sum() <= 0:
+                raise ValueError("N3 visual probabilities must be finite and non-negative")
+            row = row / row.sum()
+            candidate = candidates[index] if candidates else {}
+            patch_id = str(candidate.get("patch_id", f"patch-{index}"))
+            values = {name: float(row[j]) for j, name in enumerate(class_names)}
+            unknown = float(values.get("<UNK>", 0.0))
+            entropy = float(-np.sum(row * np.log(np.maximum(row, 1e-12))))
+            output.append(GraphemeEvidence(
+                envelope=envelopes[index], patch_id=patch_id,
+                segmentation_hypothesis_id=candidate.get("segmentation_hypothesis_id"),
+                grapheme_inventory_version=inventory_version,
+                probabilities=values, unknown_probability=unknown,
+                supporting_feature_ids=tuple(candidate.get("feature_ids", ())),
+                entropy=entropy,
+                reliability=float(candidate.get("segmentation_confidence", 1.0)),
+                calibration_status="UNCALIBRATED",
+                producer_backend="legacy.ore_n3",
+            ))
+        return tuple(output)
+
+
+class LegacyN4Adapter:
+    """Adapt predictive/attention signals; never invent C/A/B/O position codes."""
+
+    @staticmethod
+    def to_prediction_state(
+        result: Any, envelope: ContractEnvelope, *, observed_evidence_ref: str
+    ) -> PredictionState:
+        if envelope.contract_id != "IF-10":
+            raise ValueError("expected IF-10 envelope")
+        return PredictionState(
+            envelope=envelope,
+            target="grapheme posterior",
+            level="patch_sequence",
+            predicted_values=np.asarray(result.contextual_priors),
+            observed_evidence_ref=observed_evidence_ref,
+            residual=np.asarray(result.classwise_prediction_error),
+            residual_definition="N4 classwise posterior prediction residual",
+            residual_units="probability_difference",
+            sensory_precision=np.asarray(result.sensory_precision),
+            prior_precision=np.asarray(result.prior_precision),
+            pre_update_beliefs=np.asarray(result.n3_posterior_beliefs),
+            post_update_beliefs=np.asarray(result.posterior_beliefs),
+            iteration=max(0, len(getattr(result, "iteration_trace", ()))),
+            stop_reason=str(getattr(result, "diagnostics", {}).get("stop_reason", "unspecified")),
+            conflict_diagnostics={"source": "legacy.ore_n4", "calibration": "not_asserted"},
+        )
+
+    @staticmethod
+    def position_code_bundle(
+        envelope: ContractEnvelope,
+        *,
+        channels: Mapping[str, PositionCodeChannel] | None = None,
+        patch_count: int = 0,
+    ) -> PositionCodeBundle:
+        """Build IF-07 only from explicitly supplied code implementations.
+
+        Legacy N4 has no C/A/B/O channels. Without caller-supplied encodings the
+        channels are explicitly unavailable rather than fabricated from attention.
+        """
+        if envelope.contract_id != "IF-07":
+            raise ValueError("expected IF-07 envelope")
+        defined = dict(channels or {})
+        for key in ("C", "A", "B", "O"):
+            defined.setdefault(key, PositionCodeChannel(
+                channel=key, values=None, representation_kind="unavailable",
+                units="not_available", backend_id="legacy.ore_n4:no-position-code",
+                available=False,
+            ))
+        return PositionCodeBundle(
+            envelope=envelope, channels=defined,
+            logical_positions=tuple(range(patch_count)),
+        )
+
+
+class LegacyN5Adapter:
+    """Adapt legacy N5 memory into IF-08 while retaining a legacy namespace."""
+
+    @staticmethod
+    def to_memory_snapshot(model: Any, envelope: ContractEnvelope) -> OrthographicMemorySnapshot:
+        if envelope.contract_id != "IF-08":
+            raise ValueError("expected IF-08 envelope")
+        required = ("class_names", "fast_forward_counts", "slow_forward_counts",
+                    "exposure_counts", "to_dict", "fingerprint")
+        if any(not hasattr(model, item) for item in required):
+            raise TypeError("legacy N5 model does not expose required memory fields")
+        counts = np.asarray(model.fast_forward_counts, dtype=float) + np.asarray(model.slow_forward_counts, dtype=float)
+        if counts.ndim != 2 or not np.isfinite(counts).all() or np.any(counts < 0):
+            raise ValueError("N5 transition counts are invalid")
+        probabilities = counts / np.maximum(counts.sum(axis=1, keepdims=True), 1e-12)
+        exposure = {
+            str(label): int(value)
+            for label, value in zip(model.class_names, np.asarray(model.exposure_counts).tolist())
+        }
+        return OrthographicMemorySnapshot(
+            envelope=envelope,
+            memory_namespace="legacy.ore_n5.functional_memory_compatibility",
+            transition_counts=counts,
+            transition_probabilities=probabilities,
+            chunks=(),
+            exposure_counts=exposure,
+            promotion_evidence=(),
+            biological_memory_ref=None,
+            memory_version=f"legacy-n5-{getattr(model, 'version', 'unknown')}",
+        )
+
+
+class LegacyN6Adapter:
+    """Convert the highest-ranked N6 sequence while retaining alternatives and abstention."""
+
+    @staticmethod
+    def to_hypotheses(
+        result: Any, envelope: ContractEnvelope, *, top_k: int = 5
+    ) -> SequenceHypothesisSet:
+        if envelope.contract_id != "IF-12":
+            raise ValueError("expected IF-12 envelope")
+        names = tuple(getattr(result, "class_names", ()))
+        matrix = np.asarray(getattr(result, "decoded_probabilities", None), dtype=float)
+        if matrix.ndim != 2 or matrix.shape[1] != len(names):
+            raise ValueError("N6 decoded probabilities and class names are incompatible")
+        if top_k < 1:
+            raise ValueError("top_k must be positive")
+        if not np.isfinite(matrix).all() or np.any(matrix < 0):
+            raise ValueError("N6 decoded probabilities are invalid")
+        row_sums = matrix.sum(axis=1, keepdims=True)
+        if np.any(row_sums <= 0):
+            raise ValueError("N6 decoded probability rows must have positive mass")
+        matrix = matrix / row_sums
+        mean_confidence = float(np.mean(np.max(matrix, axis=1)))
+
+        alternatives = list(getattr(result, "segmentation_alternatives", []) or [])
+        candidates: list[SequenceCandidate] = []
+        for rank, alternative in enumerate(alternatives[:top_k], start=1):
+            token_records = list(alternative.get("tokens", ()))
+            graphemes: list[str] = []
+            path: list[str] = []
+            for token_index, token in enumerate(token_records):
+                token_graphemes = tuple(str(value) for value in token.get("graphemes", ()))
+                graphemes.extend(token_graphemes)
+                path.extend([f"token:{token_index}"] * len(token_graphemes))
+            if not graphemes:
+                continue
+            probability = float(alternative.get("probability", 0.0))
+            probability = float(np.clip(probability, 0.0, 1.0))
+            candidates.append(SequenceCandidate(
+                graphemes=tuple(graphemes), segmentation_path=tuple(path),
+                component_scores={"S_ortho": probability},
+                score_definitions={"S_ortho": "N6 segmentation alternative probability; not calibrated"},
+                confidence=probability,
+                decision="CANDIDATE",
+                unknown_positions=tuple(i for i, label in enumerate(graphemes) if label == "<UNK>"),
+            ))
+
+        decoded = tuple(getattr(result, "decoded_graphemes", ()))
+        if not candidates and decoded and len(decoded) == matrix.shape[0]:
+            candidates.append(SequenceCandidate(
+                graphemes=decoded,
+                segmentation_path=tuple(f"position:{i}" for i in range(len(decoded))),
+                component_scores={"S_ortho": mean_confidence},
+                score_definitions={"S_ortho": "mean maximum N6 decoded posterior; not calibrated"},
+                confidence=mean_confidence,
+                decision="CANDIDATE",
+                unknown_positions=tuple(i for i, label in enumerate(decoded) if label == "<UNK>"),
+            ))
+        diagnostics = dict(getattr(result, "diagnostics", {}) or {})
+        abstained = bool(
+            diagnostics.get("abstained", False)
+            or diagnostics.get("decision") == "ABSTAIN"
+            or not candidates
+        )
+        return SequenceHypothesisSet(
+            envelope=envelope, sequence_id=str(result.sequence_id),
+            candidates=tuple(candidates), abstained=abstained,
+            out_of_distribution=bool(diagnostics.get("out_of_distribution", False)),
+        )
+
+
+
+class LegacyN9Adapter:
+    """Wrap the historical N9 result; it is not the canonical B-N9 controller."""
+
+    @staticmethod
+    def to_recognition_result(result: Any, envelope: ContractEnvelope) -> ORERecognitionResult:
+        if envelope.contract_id != "IF-13":
+            raise ValueError("expected IF-13 envelope")
+        decision = getattr(result, "decision", {}) or {}
+        status_value = str(decision.get("status", "AMBIGUOUS")).upper()
+        status = {
+            "CANDIDATE": "RESOLVED", "RESOLVED": "RESOLVED",
+            "AMBIGUOUS": "AMBIGUOUS", "PARTIAL": "PARTIAL",
+            "ABSTAIN": "ABSTAINED", "ABSTAINED": "ABSTAINED",
+            "FAILED": "FAILED",
+        }.get(status_value, "AMBIGUOUS")
+        names = tuple(getattr(result, "class_names", ()))
+        posterior = np.asarray(getattr(result, "posterior_beliefs", []), dtype=float)
+        visual = np.asarray(getattr(result, "visual_probabilities", []), dtype=float)
+        confidence = decision.get("confidence")
+        if confidence is None and posterior.ndim == 2 and posterior.size:
+            confidence = float(np.mean(np.max(posterior, axis=1)))
+        if posterior.ndim == 2 and posterior.shape[1] == len(names) and posterior.shape[0] > 0:
+            decoded = tuple(names[int(i)] for i in np.argmax(posterior, axis=1))
+            visual_score = (
+                float(np.mean(np.max(visual, axis=1)))
+                if visual.shape == posterior.shape else float("nan")
+            )
+            candidate = SequenceCandidate(
+                graphemes=decoded,
+                segmentation_path=tuple(f"patch:{i}" for i in range(len(decoded))),
+                component_scores=({"S_vis": visual_score} if np.isfinite(visual_score) else {}),
+                score_definitions=({"S_vis": "mean maximum preserved bottom-up visual probability"} if np.isfinite(visual_score) else {}),
+                confidence=float(np.clip(confidence if confidence is not None else np.mean(np.max(posterior, axis=1)), 0.0, 1.0)),
+                decision=status,
+                unknown_positions=tuple(i for i, label in enumerate(decoded) if label == "<UNK>"),
+            )
+            candidates = (candidate,)
+        else:
+            decoded = ()
+            candidates = ()
+        abstained = status in {"ABSTAINED", "FAILED"} or not candidates
+        if status == "RESOLVED" and abstained:
+            status = "ABSTAINED"
+        representation = {
+            "visual_probabilities": visual.tolist(),
+            "posterior_beliefs": posterior.tolist(),
+            "decoded_graphemes": list(decoded),
+            "evidence_channels_separate": True,
+            "legacy_source": "ore_n9",
+        }
+        hypotheses = SequenceHypothesisSet(
+            envelope=make_envelope(
+                "IF-12", envelope.run_id, "legacy.ore_n9.adapter",
+                config={"source_envelope": envelope.fingerprint()},
+                evidence_kind=EvidenceKind.DERIVED,
+                sample_id=envelope.sample_id,
+                data_hash=envelope.data_hash,
+                script_profile_id=envelope.script_profile_id,
+            ),
+            sequence_id=str(result.sequence_id),
+            candidates=candidates,
+            abstained=abstained,
+        )
+        return ORERecognitionResult(
+            envelope=envelope, status=status, hypotheses=hypotheses,
+            orthographic_representation=representation,
+            confidence=float(confidence) if confidence is not None else None,
+            calibration_status="UNCALIBRATED",
+            limitations=("Legacy N9 output is not evidence of canonical B-N9 integration.",),
+            unsupported_channels=("canonical B-N1..B-N8 biological execution",),
+        )
+
+
+
+class BiologicalStateAdapter:
+    """Adapt simulated/measured neural state without converting units to probabilities."""
+
+    @staticmethod
+    def to_visual_feature_bundle(
+        state: NeuralStateSnapshot, envelope: ContractEnvelope
+    ) -> VisualFeatureBundle:
+        if envelope.contract_id != "IF-05":
+            raise ValueError("expected IF-05 envelope")
+        tensors = []
+        if state.membrane_potential_mv is not None:
+            tensors.append(FeatureTensor(
+                "membrane_potential", state.membrane_potential_mv,
+                "UNIT_VECTOR", "float32", "mV", (),
+                f"{state.model_class}_membrane_potential",
+            ))
+        if state.firing_rate_hz is not None:
+            tensors.append(FeatureTensor(
+                "firing_rate", state.firing_rate_hz,
+                "UNIT_VECTOR", "float32", "Hz", (),
+                f"{state.model_class}_firing_rate",
+            ))
+        if state.synaptic_current is not None:
+            tensors.append(FeatureTensor(
+                "synaptic_current", state.synaptic_current,
+                "UNIT_VECTOR", "float32", state.synaptic_current_units, (),
+                f"{state.model_class}_synaptic_current",
+            ))
+        if not tensors:
+            raise ValueError("neural snapshot contains no available feature arrays")
+        return VisualFeatureBundle(
+            envelope=envelope, feature_tensors=tuple(tensors),
+            source_region_ids=tuple(state.population_unit_indices),
+            producer_kind=f"neural_simulator:{state.simulator_version}",
+            receptive_field_metadata={
+                "model_class": state.model_class,
+                "simulation_time_ms": state.simulation_time_ms,
+                "step_index": state.step_index,
+                "connectivity_fingerprint": state.connectivity_fingerprint,
+                "numerical_status": state.numerical_status,
+            },
+        )
+
+
+__all__ = [
+    "make_envelope", "BiologicalStateAdapter", "LegacyN1Adapter", "LegacyN2Adapter", "LegacyN3Adapter",
+    "LegacyN4Adapter", "LegacyN5Adapter", "LegacyN6Adapter", "LegacyN9Adapter",
+]
