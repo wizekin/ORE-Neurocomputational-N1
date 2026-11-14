@@ -945,8 +945,10 @@ class N9Processor:
             for symbol, probability in semantic_predictions.items():
                 if symbol in class_names:
                     lexical_feedback[i, class_names.index(symbol)] += float(probability)
-        if lexical_feedback.sum() > cfg.epsilon:
-            lexical_feedback = _normalize_rows(lexical_feedback + cfg.epsilon, cfg.epsilon)
+        for row_index in range(n):
+            row_total = float(lexical_feedback[row_index].sum())
+            if row_total > cfg.epsilon:
+                lexical_feedback[row_index] /= row_total
         mark(86, feedback_mass=float(lexical_feedback.sum()))
         lexical_char_feedback = np.zeros_like(visual_probabilities)
         for hypothesis in lexical_hypotheses:
@@ -957,8 +959,10 @@ class N9Processor:
                 index = start + offset
                 if 0 <= index < n and char in class_names:
                     lexical_char_feedback[index, class_names.index(char)] += float(hypothesis.get("score", 0.0))
-        if lexical_char_feedback.sum() > cfg.epsilon:
-            lexical_char_feedback = _normalize_rows(lexical_char_feedback + cfg.epsilon, cfg.epsilon)
+        for row_index in range(n):
+            row_total = float(lexical_char_feedback[row_index].sum())
+            if row_total > cfg.epsilon:
+                lexical_char_feedback[row_index] /= row_total
         mark(87, feedback_mass=float(lexical_char_feedback.sum()))
         predicted_visual_features = n8_output.get("predicted_visual_features") if n8_output else None
         if predicted_visual_features is not None:
@@ -1183,17 +1187,22 @@ class N9Processor:
         }
         if request.learning_authorized and self.adapters.n5 is not None:
             parent_before = _module_fingerprint(self.adapters.n5)
-            proposal_result = _call_adapter(
-                self.adapters.n5,
-                {
-                    "operation": "propose_detached_child_update",
-                    "parent_fingerprint": parent_before,
-                    "learning_opportunities": learning_opportunities,
-                    "transition_statistics_source": sequence_paths,
-                    "frozen_inference_digest": frozen_inference_digest,
-                },
-                ("propose_update", "train_child", "process"),
-            ) or {}
+            try:
+                detached_adapter = deepcopy(self.adapters.n5)
+                proposal_result = _call_adapter(
+                    detached_adapter,
+                    {
+                        "operation": "propose_detached_child_update",
+                        "parent_fingerprint": parent_before,
+                        "learning_opportunities": learning_opportunities,
+                        "transition_statistics_source": sequence_paths,
+                        "frozen_inference_digest": frozen_inference_digest,
+                    },
+                    ("propose_update", "train_child", "process"),
+                ) or {}
+            except Exception as exc:
+                proposal_result = {}
+                warnings.append(f"N5 detached proposal unavailable: {type(exc).__name__}")
             parent_after = _module_fingerprint(self.adapters.n5)
             parent_unchanged = parent_before == parent_after
             child = proposal_result.get("child_model")
@@ -1316,7 +1325,7 @@ class N9Processor:
             "subsystem_count": 10,
             "patch_count": n,
             "class_count": len(class_names),
-            "feature_shapes": [list(value.shape) for value in feature_matrix.shape] if False else list(feature_matrix.shape),
+            "feature_matrix_shape": list(feature_matrix.shape),
             "task_output": task_output,
             "integrated_graph": integrated_graph,
             "structured_result": structured_result,
