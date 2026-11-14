@@ -300,21 +300,46 @@ class LegacyN9Adapter:
     def to_recognition_result(result: Any, envelope: ContractEnvelope) -> ORERecognitionResult:
         if envelope.contract_id != "IF-13":
             raise ValueError("expected IF-13 envelope")
-        status_value = str((getattr(result, "decision", {}) or {}).get("status", "AMBIGUOUS")).upper()
-        mapping = {
-            "RESOLVED": "RESOLVED", "ACCEPT": "RESOLVED", "AMBIGUOUS": "AMBIGUOUS",
-            "PARTIAL": "PARTIAL", "ABSTAIN": "ABSTAINED", "ABSTAINED": "ABSTAINED",
+        decision = getattr(result, "decision", {}) or {}
+        status_value = str(decision.get("status", "AMBIGUOUS")).upper()
+        status = {
+            "CANDIDATE": "RESOLVED", "RESOLVED": "RESOLVED",
+            "AMBIGUOUS": "AMBIGUOUS", "PARTIAL": "PARTIAL",
+            "ABSTAIN": "ABSTAINED", "ABSTAINED": "ABSTAINED",
             "FAILED": "FAILED",
-        }
-        status = mapping.get(status_value, "AMBIGUOUS")
-        probabilities = np.asarray(getattr(result, "posterior_beliefs", []), dtype=float)
-        confidence = None
-        if probabilities.ndim == 2 and probabilities.size:
-            confidence = float(np.mean(np.max(probabilities, axis=1)))
+        }.get(status_value, "AMBIGUOUS")
+        names = tuple(getattr(result, "class_names", ()))
+        posterior = np.asarray(getattr(result, "posterior_beliefs", []), dtype=float)
         visual = np.asarray(getattr(result, "visual_probabilities", []), dtype=float)
+        confidence = decision.get("confidence")
+        if confidence is None and posterior.ndim == 2 and posterior.size:
+            confidence = float(np.mean(np.max(posterior, axis=1)))
+        if posterior.ndim == 2 and posterior.shape[1] == len(names) and posterior.shape[0] > 0:
+            decoded = tuple(names[int(i)] for i in np.argmax(posterior, axis=1))
+            visual_score = (
+                float(np.mean(np.max(visual, axis=1)))
+                if visual.shape == posterior.shape else float("nan")
+            )
+            candidate = SequenceCandidate(
+                graphemes=decoded,
+                segmentation_path=tuple(f"patch:{i}" for i in range(len(decoded))),
+                component_scores=({"S_vis": visual_score} if np.isfinite(visual_score) else {}),
+                score_definitions=({"S_vis": "mean maximum preserved bottom-up visual probability"} if np.isfinite(visual_score) else {}),
+                confidence=float(np.clip(confidence if confidence is not None else np.mean(np.max(posterior, axis=1)), 0.0, 1.0)),
+                decision=status,
+                unknown_positions=tuple(i for i, label in enumerate(decoded) if label == "<UNK>"),
+            )
+            candidates = (candidate,)
+        else:
+            decoded = ()
+            candidates = ()
+        abstained = status in {"ABSTAINED", "FAILED"} or not candidates
+        if status == "RESOLVED" and abstained:
+            status = "ABSTAINED"
         representation = {
             "visual_probabilities": visual.tolist(),
-            "posterior_beliefs": probabilities.tolist(),
+            "posterior_beliefs": posterior.tolist(),
+            "decoded_graphemes": list(decoded),
             "evidence_channels_separate": True,
             "legacy_source": "ore_n9",
         }
@@ -328,16 +353,18 @@ class LegacyN9Adapter:
                 script_profile_id=envelope.script_profile_id,
             ),
             sequence_id=str(result.sequence_id),
-            candidates=(),
-            abstained=True,
+            candidates=candidates,
+            abstained=abstained,
         )
         return ORERecognitionResult(
             envelope=envelope, status=status, hypotheses=hypotheses,
             orthographic_representation=representation,
-            confidence=confidence, calibration_status="UNCALIBRATED",
+            confidence=float(confidence) if confidence is not None else None,
+            calibration_status="UNCALIBRATED",
             limitations=("Legacy N9 output is not evidence of canonical B-N9 integration.",),
             unsupported_channels=("canonical B-N1..B-N8 biological execution",),
         )
+
 
 
 class BiologicalStateAdapter:
@@ -388,47 +415,3 @@ __all__ = [
     "make_envelope", "BiologicalStateAdapter", "LegacyN1Adapter", "LegacyN2Adapter", "LegacyN3Adapter",
     "LegacyN4Adapter", "LegacyN5Adapter", "LegacyN6Adapter", "LegacyN9Adapter",
 ]
-
-
-class BiologicalStateAdapter:
-    """Adapt simulated/measured neural state without converting units to probabilities."""
-
-    @staticmethod
-    def to_visual_feature_bundle(
-        state: NeuralStateSnapshot, envelope: ContractEnvelope
-    ) -> VisualFeatureBundle:
-        if envelope.contract_id != "IF-05":
-            raise ValueError("expected IF-05 envelope")
-        tensors = []
-        if state.membrane_potential_mv is not None:
-            tensors.append(FeatureTensor(
-                "membrane_potential", state.membrane_potential_mv,
-                "UNIT_VECTOR", "float32", "mV", (),
-                f"{state.model_class}_membrane_potential",
-            ))
-        if state.firing_rate_hz is not None:
-            tensors.append(FeatureTensor(
-                "firing_rate", state.firing_rate_hz,
-                "UNIT_VECTOR", "float32", "Hz", (),
-                f"{state.model_class}_firing_rate",
-            ))
-        if state.synaptic_current is not None:
-            tensors.append(FeatureTensor(
-                "synaptic_current", state.synaptic_current,
-                "UNIT_VECTOR", "float32", state.synaptic_current_units, (),
-                f"{state.model_class}_synaptic_current",
-            ))
-        if not tensors:
-            raise ValueError("neural snapshot contains no available feature arrays")
-        return VisualFeatureBundle(
-            envelope=envelope, feature_tensors=tuple(tensors),
-            source_region_ids=tuple(state.population_unit_indices),
-            producer_kind=f"neural_simulator:{state.simulator_version}",
-            receptive_field_metadata={
-                "model_class": state.model_class,
-                "simulation_time_ms": state.simulation_time_ms,
-                "step_index": state.step_index,
-                "connectivity_fingerprint": state.connectivity_fingerprint,
-                "numerical_status": state.numerical_status,
-            },
-        )
