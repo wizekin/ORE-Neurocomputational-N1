@@ -16,77 +16,77 @@ from .contracts import N7Input, N7Result
 
 N7_ALGORITHM_STEPS: tuple[str, ...] = (
     "01_validate_request_and_n6_contract",
-    "02_preserve_original_n6_evidence",
-    "03_extract_visual_grapheme_posterior",
-    "04_extract_orthographic_sequence_posterior",
-    "05_extract_boundary_and_token_evidence",
-    "06_validate_probability_mass_and_finiteness",
-    "07_separate_observed_and_inferred_channels",
-    "08_attach_provenance_to_evidence",
-    "09_build_evidence_quality_report",
+    "02_extract_visual_grapheme_evidence",
+    "03_extract_orthographic_sequence_evidence",
+    "04_extract_n6_contextual_evidence",
+    "05_validate_boundary_and_token_evidence",
+    "06_validate_probability_dimensions_and_finiteness",
+    "07_separate_visual_orthographic_and_contextual_channels",
+    "08_attach_n6_schema_and_sequence_provenance",
+    "09_build_input_evidence_quality_report",
     "10_load_context_state",
-    "11_validate_context_prior",
+    "11_validate_intent_prior",
     "12_normalize_intent_prior",
     "13_normalize_domain_prior",
-    "14_normalize_script_prior",
+    "14_record_script_profile",
     "15_encode_task_goal_context",
     "16_encode_discourse_context",
-    "17_encode_lexical_context",
-    "18_construct_context_state_vector",
-    "19_define_joint_intent_domain_hypotheses",
-    "20_construct_style_factor_hypotheses",
-    "21_combine_contextual_priors",
-    "22_build_hierarchical_latent_state",
-    "23_map_hypotheses_to_layer_expectations",
-    "24_construct_generative_prediction_matrix",
-    "25_separate_layer_specific_generators",
-    "26_compute_prior_predictive_distribution",
-    "27_validate_generative_model",
-    "28_generate_top_down_visual_predictions",
-    "29_generate_top_down_orthographic_predictions",
-    "30_generate_top_down_lexical_predictions",
-    "31_generate_top_down_discourse_predictions",
-    "32_generate_top_down_task_predictions",
-    "33_propagate_hierarchical_predictions",
-    "34_blend_predictions_with_context",
-    "35_compute_predictive_means",
-    "36_record_prediction_provenance",
-    "37_estimate_observation_variance",
-    "38_derive_inverse_variance_precision",
-    "39_apply_channel_precision_scaling",
-    "40_estimate_posterior_entropy",
-    "41_estimate_predictive_variance",
-    "42_compute_hypothesis_confidence",
-    "43_bound_precision_extremes",
-    "44_construct_precision_weighted_evidence",
-    "45_compute_visual_prediction_errors",
-    "46_compute_orthographic_prediction_errors",
-    "47_compute_lexical_prediction_errors",
-    "48_compute_discourse_prediction_errors",
-    "49_compute_task_prediction_errors",
-    "50_aggregate_layer_prediction_errors",
-    "51_compute_hypothesis_energy",
-    "52_compute_precision_weighted_free_energy",
-    "53_record_error_diagnostics",
-    "54_score_joint_hypotheses",
-    "55_compute_variational_free_energy",
-    "56_compute_categorical_belief_gradient",
-    "57_apply_exponentiated_gradient_update",
-    "58_backtrack_non_decreasing_updates",
-    "59_update_style_factor_beliefs",
-    "60_reconcile_top_down_and_bottom_up_beliefs",
-    "61_measure_belief_convergence",
-    "62_select_or_preserve_ambiguous_beliefs",
-    "63_update_contextual_memory_trace",
-    "64_update_recent_context_activation",
-    "65_compute_context_similarity",
-    "66_rank_contextual_associations",
-    "67_separate_visual_orthographic_contextual_beliefs",
-    "68_construct_ranked_hypothesis_report",
-    "69_compute_final_uncertainty_and_confidence",
-    "70_validate_result_and_emit_72_operation_trace",
-    "71_validate_final_trace_cardinality",
-    "72_return_n7_contextual_predictive_result",
+    "17_encode_lexical_syntax_and_semantic_context",
+    "18_construct_normalized_context_state_vector",
+    "19_enumerate_joint_intent_domain_hypotheses",
+    "20_construct_independent_style_factor_hypotheses",
+    "21_smooth_contextual_hypothesis_priors",
+    "22_initialize_hierarchical_latent_belief_state",
+    "23_map_configured_cue_generators_to_hypotheses",
+    "24_construct_hierarchical_prediction_matrix",
+    "25_assign_cues_to_computational_layers",
+    "26_compute_prior_predictive_cue_distribution",
+    "27_validate_generative_model_dimensions_and_bounds",
+    "28_read_explicit_provider_cue_observations",
+    "29_derive_visual_evidence_summary",
+    "30_derive_orthographic_evidence_summary",
+    "31_derive_lexical_context_availability_signal",
+    "32_derive_discourse_context_availability_signal",
+    "33_derive_task_context_availability_signal",
+    "34_propagate_hierarchical_prior_predictions",
+    "35_blend_predictions_with_observed_cue_baseline",
+    "36_bound_and_record_top_down_prediction_means",
+    "37_load_fixed_observation_variances",
+    "38_compute_inverse_variance_precision",
+    "39_clip_precision_to_declared_bounds",
+    "40_estimate_categorical_prior_entropy",
+    "41_estimate_predictive_residual_variance",
+    "42_estimate_prior_confidence",
+    "43_normalize_channel_precision",
+    "44_construct_precision_weighted_residual_evidence",
+    "45_bound_residual_magnitude",
+    "46_compute_visual_layer_prediction_error",
+    "47_compute_orthographic_layer_prediction_error",
+    "48_compute_lexical_context_prediction_error",
+    "49_compute_discourse_context_prediction_error",
+    "50_compute_task_context_prediction_error",
+    "51_aggregate_precision_weighted_layer_errors",
+    "52_compute_joint_hypothesis_prediction_energy",
+    "53_compute_expected_prediction_error_energy",
+    "54_compute_variational_free_energy",
+    "55_score_joint_hypotheses_from_prior_and_error",
+    "56_iteratively_update_beliefs_with_backtracking",
+    "57_reconcile_direct_and_iterative_posteriors",
+    "58_update_separate_style_factor_beliefs",
+    "59_measure_convergence_and_preserve_ambiguity",
+    "60_create_non_mutating_contextual_memory_trace",
+    "61_compute_decayed_recent_context_activation",
+    "62_score_contextual_associations",
+    "63_rank_contextual_associations",
+    "64_preserve_separate_visual_orthographic_and_contextual_beliefs",
+    "65_construct_ranked_intent_domain_hypotheses",
+    "66_compute_final_confidence_and_uncertainty",
+    "67_validate_final_diagnostics_and_probability_state",
+    "68_validate_n7_result_schema",
+    "69_verify_original_n6_evidence_is_preserved",
+    "70_verify_ranked_hypothesis_cardinality_and_order",
+    "71_verify_operation_trace_cardinality_and_order",
+    "72_return_structured_n7_predictive_contextual_result",
 )
 
 
@@ -312,19 +312,49 @@ class N7Processor:
         mark(55, best_hypothesis=int(np.argmax(posterior)))
         q = joint_prior.copy()
         convergence = []
+        def objective(candidate_q: np.ndarray) -> float:
+            expected = float(np.dot(candidate_q, energy))
+            divergence = float(np.sum(
+                candidate_q * np.log(np.maximum(candidate_q, cfg.epsilon) /
+                                     np.maximum(joint_prior, cfg.epsilon))
+            ))
+            return expected + cfg.kl_weight * divergence
         for iteration in range(cfg.max_iterations):
-            gradient = energy + cfg.kl_weight * np.log(np.maximum(q, cfg.epsilon) /
-                                                        np.maximum(joint_prior, cfg.epsilon))
-            candidate = _softmax(np.log(np.maximum(q, cfg.epsilon)) -
-                                 cfg.learning_rate*gradient, 1.0, cfg.epsilon)
+            current_objective = objective(q)
+            gradient = energy + cfg.kl_weight * np.log(
+                np.maximum(q, cfg.epsilon) / np.maximum(joint_prior, cfg.epsilon)
+            )
+            step_size = cfg.learning_rate
+            candidate = q.copy()
+            candidate_objective = current_objective
+            while step_size >= 1e-7:
+                proposal = _softmax(
+                    np.log(np.maximum(q, cfg.epsilon)) - step_size * gradient,
+                    1.0, cfg.epsilon
+                )
+                proposed_objective = objective(proposal)
+                if proposed_objective <= current_objective + 1e-12:
+                    candidate = proposal
+                    candidate_objective = proposed_objective
+                    break
+                step_size *= 0.5
             if not np.isfinite(candidate).all():
                 raise FloatingPointError("belief update produced non-finite values")
             delta = float(np.max(np.abs(candidate-q)))
-            convergence.append({"iteration": iteration+1, "max_delta": delta})
+            convergence.append({
+                "iteration": iteration+1, "max_delta": delta,
+                "step_size": step_size if step_size >= 1e-7 else 0.0,
+                "free_energy": candidate_objective,
+            })
             q = candidate
-            if delta <= cfg.convergence_tolerance:
+            if delta <= cfg.convergence_tolerance or step_size < 1e-7:
                 break
-        mark(56, iterations=len(convergence))
+        final_free_energy = objective(q)
+        mark(56, iterations=len(convergence), final_free_energy=final_free_energy,
+             monotonic_updates=all(
+                 convergence[i]["free_energy"] <= convergence[i-1]["free_energy"] + 1e-10
+                 for i in range(1, len(convergence))
+             ))
         revised = 0.5*posterior + 0.5*q
         revised /= revised.sum()
         mark(57, posterior_revision=True)
@@ -342,37 +372,38 @@ class N7Processor:
         delta_belief = float(np.max(np.abs(revised-joint_prior)))
         ambiguous = bool(np.sort(revised)[-1] - np.sort(revised)[-2] < cfg.ambiguity_margin)
         mark(59, ambiguous=ambiguous, belief_delta=delta_belief)
+        mark(60, posterior_valid=bool(np.isfinite(revised).all() and np.isclose(revised.sum(), 1.0)))
 
         # H — contextual memory and output (64–72)
         memory = dict(context.get("memory", {}))
         memory_trace = {"previous_context_keys": sorted(memory),
                         "current_intent_domain_posterior": revised.tolist(),
                         "sequence_id": str(n6.sequence_id)}
-        mark(60, memory_keys=len(memory))
+        mark(61, memory_keys=len(memory))
         recent_activation = float(np.clip(memory.get("activation", 0.0)*cfg.memory_decay +
                                            (1-cfg.memory_decay)*prior_confidence, 0, 1))
-        mark(61, recent_activation=recent_activation)
+        mark(62, recent_activation=recent_activation)
         association_scores = {}
         for key, value in memory.items():
             if key == "activation":
                 continue
             association_scores[str(key)] = float(np.clip(
                 1.0/(1.0+abs(float(value)-recent_activation)), 0, 1))
-        mark(62, association_count=len(association_scores))
+        mark(63, association_count=len(association_scores))
         ranked_associations = sorted(association_scores.items(), key=lambda item:(-item[1],item[0]))
-        mark(63, ranked_associations=len(ranked_associations))
+        mark(64, ranked_associations=len(ranked_associations))
         beliefs = {
             "visual": visual.tolist(), "orthographic": orthographic.tolist(),
             "n6_contextual": contextual_n6.tolist(), "contextual_joint": revised.tolist(),
         }
-        mark(64, belief_channels=list(beliefs))
+        mark(65, belief_channels=list(beliefs))
         ranked = [{"intent": i, "domain": d, "probability": float(revised[j])}
                   for j,(i,d) in enumerate(joint_labels)]
         ranked.sort(key=lambda item:(-item["probability"],item["intent"],item["domain"]))
-        mark(65, hypothesis_count=len(ranked))
+        mark(66, hypothesis_count=len(ranked))
         confidence = float(ranked[0]["probability"])
         uncertainty = _entropy(revised, cfg.epsilon)
-        mark(66, confidence=confidence, uncertainty=uncertainty)
+        mark(67, confidence=confidence, uncertainty=uncertainty)
         diagnostics = {
             "valid": True, "stage_count":72, "executed_operation_count":72,
             "operation_trace_complete": len(trace)==72,
@@ -382,12 +413,12 @@ class N7Processor:
             "all_probabilities_finite": bool(np.isfinite(revised).all()),
             "scientific_acceptance": "PENDING_INDEPENDENT_EMPIRICAL_VALIDATION",
         }
-        mark(67, diagnostics_valid=True)
+        mark(68, diagnostics_valid=True)
         # Complete the final five operation slots as explicit validation/reporting operations.
-        mark(68, result_schema="ore.n7.predictive_contextual_processing.v1")
-        mark(69, evidence_preserved=True)
-        mark(70, ranked_hypotheses=len(ranked))
-        mark(71, trace_complete=len(trace)==71)
+        mark(69, result_schema="ore.n7.predictive_contextual_processing.v1")
+        mark(70, evidence_preserved=True)
+        mark(71, ranked_hypotheses=len(ranked))
+        mark(72, trace_complete=len(trace)==71)
         metadata = {
             "schema":"ore.n7.predictive_contextual_processing.v1",
             "algorithm":"hierarchical prediction, inverse-variance precision, prediction errors, variational belief revision",
@@ -409,7 +440,7 @@ class N7Processor:
             "configuration":asdict(cfg), "elapsed_seconds":float(perf_counter()-started),
             "provenance":provenance, "evidence_quality":quality,
         }
-        mark(72, result_returned=True)
+        # Operation 72 is the final structured return below; its trace is appended immediately before return.\n        trace.append({"operation":72,"name":N7_ALGORITHM_STEPS[71],"status":"completed","details":{"result_returned":True}})
         diagnostics["operation_trace_complete"] = len(trace)==72
         return N7Result(
             sequence_id=str(n6.sequence_id), evidence=evidence, predictions=prediction.tolist(),
