@@ -268,7 +268,7 @@ class N3Processor:
                     for i in order
                 ],
                 "top_candidate": self.class_names[int(order[0])],
-                "top_probability": float(row[order[0])],
+                "top_probability": float(row[order[0])]),
                 "segmentation_confidence": float(patch.segmentation_confidence),
                 "attention": float(patch.attention),
             })
